@@ -1,0 +1,74 @@
+###############################################################################
+# NoExcuses — .gitignore
+# Covers: Symfony, React, Docker, OS, IDE
+###############################################################################
+
+# ── Claude / projet ──────────────────────────────────────────────────────────
+.claude/
+CLAUDE.md
+
+# ── Symfony backend ──────────────────────────────────────────────────────────
+backend/.env.local
+backend/.env.local.php
+backend/.env.*.local
+backend/var/
+backend/vendor/
+backend/public/bundles/
+backend/.php-cs-fixer.cache
+backend/.php_cs.cache
+backend/phpcs.xml
+backend/config/jwt/private.pem
+backend/config/jwt/public.pem
+
+# ── React frontend ────────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# ── Docker / environnement ────────────────────────────────────────────────────
+.env
+.env.local
+.env.prod
+docker-compose.override.yml
+docker-compose.prod.yml
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# ── Tests & couverture ────────────────────────────────────────────────────────
+backend/.phpunit.result.cache
+backend/coverage/
+frontend/coverage/
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Volumes Docker montés ─────────────────────────────────────────────────────
+docker/mysql/data/
