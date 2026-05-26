@@ -27,6 +27,7 @@ class ProfilController extends AbstractController
             'taille'          => $user->getTaille(),
             'sexe'            => $user->getSexe(),
             'poidsInitial'    => $user->getPoidsInitial(),
+            'dateNaissance'   => $user->getDateNaissance()?->format('Y-m-d'),
             'caloriesObjectif' => $user->getCaloriesObjectif(),
             'niveauActivite'  => $user->getNiveauActivite(),
         ]);
@@ -39,7 +40,11 @@ class ProfilController extends AbstractController
 
         try {
             $user = $this->profilService->updateProfil($this->getUser(), $data);
-            return $this->json(['message' => 'Profil mis à jour.', 'prenom' => $user->getPrenom()]);
+            return $this->json([
+                'message'          => 'Profil mis à jour.',
+                'prenom'           => $user->getPrenom(),
+                'caloriesObjectif' => $user->getCaloriesObjectif(),
+            ]);
         } catch (\InvalidArgumentException $e) {
             return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getJournal, searchAliments, addRepas, deleteRepas } from '../api/nutrition';
+import api from '../api/axios';
 import CalorieCircle from '../components/common/CalorieCircle';
 
 const TYPES = ['petit-dejeuner', 'dejeuner', 'diner', 'encas'];
@@ -8,22 +9,49 @@ const TYPE_LABELS = { 'petit-dejeuner': 'Petit-déjeuner', 'dejeuner': 'Déjeune
 export default function Nutrition() {
   const [date, setDate]         = useState(new Date().toISOString().split('T')[0]);
   const [journal, setJournal]   = useState(null);
+  const [calorieTarget, setCalorieTarget] = useState(2000); // chargé depuis le profil
   const [search, setSearch]     = useState('');
   const [results, setResults]   = useState([]);
+  const [noResults, setNoResults] = useState(false);
   const [selected, setSelected] = useState(null);
   const [quantite, setQuantite] = useState('100');
   const [typeRepas, setTypeRepas] = useState('dejeuner');
-  const [loading, setLoading]   = useState(false);
+  const [loading, setLoading]     = useState(false);
+  const [searching, setSearching] = useState(false);
+  const debounceRef               = useRef(null);
+
+  // Charger l'objectif calories depuis le profil
+  useEffect(() => {
+    api.get('/profil').then((r) => {
+      if (r.data.caloriesObjectif) setCalorieTarget(r.data.caloriesObjectif);
+    }).catch(() => {});
+  }, []);
 
   const loadJournal = () =>
     getJournal(date).then((r) => setJournal(r.data)).catch(() => setJournal(null));
 
   useEffect(() => { loadJournal(); }, [date]);
 
-  const handleSearch = async () => {
-    if (search.length < 2) return;
-    const r = await searchAliments(search);
-    setResults(r.data);
+  const handleSearch = async (term = search) => {
+    if (term.length < 2) { setResults([]); setNoResults(false); return; }
+    setSearching(true);
+    setNoResults(false);
+    try {
+      const r = await searchAliments(term);
+      setResults(r.data ?? []);
+      setNoResults((r.data ?? []).length === 0);
+    } catch {
+      setResults([]);
+      setNoResults(true);
+    } finally { setSearching(false); }
+  };
+
+  const handleSearchInput = (val) => {
+    setSearch(val);
+    setNoResults(false);
+    clearTimeout(debounceRef.current);
+    if (val.length < 2) { setResults([]); return; }
+    debounceRef.current = setTimeout(() => handleSearch(val), 600);
   };
 
   const handleAdd = async () => {
@@ -42,10 +70,10 @@ export default function Nutrition() {
   };
 
   const totaux = journal?.totaux ?? {};
-  const target = 2000;
+  const target = calorieTarget;
 
   return (
-    <div style={styles.page}>
+    <div className="page-wrap narrow" style={{ margin: '0 auto' }}>
       <header style={styles.header}>
         <h1 style={styles.title}>Nutrition</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -56,13 +84,18 @@ export default function Nutrition() {
       </header>
 
       {/* Résumé calories */}
-      <div style={styles.summary}>
+      <div className="nutrition-summary">
         <CalorieCircle consumed={Math.round(totaux.calories ?? 0)} target={target} />
-        <div style={{ marginLeft: '24px' }}>
-          {['proteines', 'glucides', 'lipides'].map((k) => (
-            <div key={k} style={{ marginBottom: '6px', fontSize: '14px' }}>
-              <strong>{capitalize(k)} :</strong>{' '}
-              <span style={{ color: '#22C55E' }}>{Math.round(totaux[k] ?? 0)}g</span>
+        <div className="nutrition-macros">
+          {[
+            { key: 'proteines', color: '#22C55E' },
+            { key: 'glucides',  color: '#3B82F6' },
+            { key: 'lipides',   color: '#F59E0B' },
+            { key: 'fibres',    color: '#8B5CF6' },
+          ].map(({ key, color }) => (
+            <div key={key} style={{ marginBottom: '6px', fontSize: '14px' }}>
+              <strong>{capitalize(key)} :</strong>{' '}
+              <span style={{ color }}>{Math.round(totaux[key] ?? 0)}g</span>
             </div>
           ))}
         </div>
@@ -76,10 +109,12 @@ export default function Nutrition() {
             style={{ ...styles.input, flex: 1 }}
             placeholder="Rechercher un aliment…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           />
-          <button style={styles.btn} onClick={handleSearch}>Chercher</button>
+          <button style={{ ...styles.btn, opacity: searching ? 0.7 : 1 }} onClick={() => handleSearch()} disabled={searching}>
+            {searching ? '…' : 'Chercher'}
+          </button>
         </div>
 
         {results.length > 0 && (
@@ -95,6 +130,13 @@ export default function Nutrition() {
               </li>
             ))}
           </ul>
+        )}
+
+        {noResults && !searching && (
+          <div style={{ marginTop: '10px', padding: '12px', background: '#FFF7ED', borderRadius: '8px', fontSize: '13px', color: '#92400E' }}>
+            Aucun résultat pour « {search} ».<br />
+            💡 Essaie en anglais (ex: <em>chicken</em>, <em>pasta</em>, <em>rice</em>) ou vérifie l'orthographe.
+          </div>
         )}
 
         {selected && (

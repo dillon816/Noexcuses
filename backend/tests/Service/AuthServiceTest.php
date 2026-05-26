@@ -6,6 +6,7 @@ use App\Entity\User;
 use App\Repository\UserRepository;
 use App\Service\AuthService;
 use Doctrine\ORM\EntityManagerInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Validator\ConstraintViolationList;
@@ -15,10 +16,11 @@ class AuthServiceTest extends TestCase
 {
     private function buildService(bool $emailExists = false): AuthService
     {
-        $em       = $this->createMock(EntityManagerInterface::class);
-        $repo     = $this->createMock(UserRepository::class);
-        $hasher   = $this->createMock(UserPasswordHasherInterface::class);
-        $validator = $this->createMock(ValidatorInterface::class);
+        $em         = $this->createMock(EntityManagerInterface::class);
+        $repo       = $this->createMock(UserRepository::class);
+        $hasher     = $this->createMock(UserPasswordHasherInterface::class);
+        $validator  = $this->createMock(ValidatorInterface::class);
+        $jwtManager = $this->createMock(JWTTokenManagerInterface::class);
 
         $repo->method('findByEmail')->willReturn($emailExists ? new User() : null);
         $hasher->method('hashPassword')->willReturn('hashed_password');
@@ -26,7 +28,7 @@ class AuthServiceTest extends TestCase
         $em->method('persist');
         $em->method('flush');
 
-        return new AuthService($em, $repo, $hasher, $validator);
+        return new AuthService($em, $repo, $hasher, $validator, $jwtManager);
     }
 
     public function testRegisterCreatesUser(): void

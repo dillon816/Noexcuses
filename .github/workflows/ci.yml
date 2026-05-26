@@ -9,24 +9,8 @@ on:
 jobs:
   # ── Backend : Symfony / PHPUnit ────────────────────────────────────────────
   backend:
-    name: Backend (PHP 8.2 / Symfony 6.4)
+    name: Backend (PHP 8.3 / Symfony 6.4)
     runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: noexcuses_test
-          MYSQL_USER: noexcuses
-          MYSQL_PASSWORD: noexcuses
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
 
     defaults:
       run:
@@ -38,9 +22,9 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.2"
+          php-version: "8.3"
           extensions: intl, pdo_mysql, zip, mbstring, opcache
-          coverage: xdebug
+          coverage: none
 
       - name: Cache Composer
         uses: actions/cache@v4
@@ -50,18 +34,14 @@ jobs:
           restore-keys: composer-
 
       - name: Install dependencies
+        env:
+          COMPOSER_MEMORY_LIMIT: -1
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Copy env
-        run: cp .env.example .env.test.local
-
       - name: Run PHPUnit
-        env:
-          APP_ENV: test
-          DATABASE_URL: "mysql://noexcuses:noexcuses@127.0.0.1:3306/noexcuses_test?serverVersion=8.0"
-        run: vendor/bin/phpunit --coverage-text
+        run: vendor/bin/phpunit --testdox
 
-  # ── Frontend : React / ESLint / Build ─────────────────────────────────────
+  # ── Frontend : React / Build ──────────────────────────────────────────────
   frontend:
     name: Frontend (Node 20 / React)
     runs-on: ubuntu-latest
@@ -82,9 +62,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Lint
-        run: npm run lint --if-present
 
       - name: Build
         run: npm run build

@@ -20,6 +20,10 @@ class Aliment
     #[ORM\Column(type: 'string', length: 100, unique: true, nullable: true)]
     private ?string $codeApi = null;
 
+    /** Nom anglais utilisé pour l'appel CalorieNinjas (ex: "chicken breast") */
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $nomApi = null;
+
     #[ORM\Column(type: 'decimal', precision: 7, scale: 2)]
     private string $calories100g;
 
@@ -42,6 +46,9 @@ class Aliment
 
     public function getCodeApi(): ?string { return $this->codeApi; }
     public function setCodeApi(?string $code): self { $this->codeApi = $code; return $this; }
+
+    public function getNomApi(): ?string { return $this->nomApi; }
+    public function setNomApi(?string $nomApi): self { $this->nomApi = $nomApi; return $this; }
 
     public function getCalories100g(): string { return $this->calories100g; }
     public function setCalories100g(string $val): self { $this->calories100g = $val; return $this; }

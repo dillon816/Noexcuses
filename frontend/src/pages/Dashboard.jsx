@@ -11,8 +11,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getDashboard(), getScore()])
-      .then(([d, r]) => { setData(d.data); setRecovery(r.data); })
+    Promise.all([
+      getDashboard(),
+      getScore().catch(() => ({ data: null })), // ne pas bloquer le dashboard si le score échoue
+    ])
+      .then(([d, r]) => { setData(d.data); setRecovery(r?.data ?? null); })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -25,18 +28,19 @@ export default function Dashboard() {
     { label: 'Protéines', current: Math.round(data?.proteines ?? 0), target: 150, color: '#22C55E' },
     { label: 'Glucides',  current: Math.round(data?.glucides  ?? 0), target: 250, color: '#3B82F6' },
     { label: 'Lipides',   current: Math.round(data?.lipides   ?? 0), target: 70,  color: '#F59E0B' },
+    { label: 'Fibres',    current: Math.round(data?.fibres    ?? 0), target: 30,  color: '#8B5CF6' },
   ];
 
   const recoveryColor = recovery?.score >= 70 ? '#22C55E' : recovery?.score >= 40 ? '#F59E0B' : '#EA580C';
 
   return (
-    <div style={styles.page}>
+    <div className="page-wrap wide" style={{ margin: '0 auto' }}>
       <header style={styles.header}>
         <h1 style={styles.title}>Dashboard</h1>
         <p style={styles.date}>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </header>
 
-      <div style={styles.grid}>
+      <div className="grid-cards">
         {/* Calories */}
         <div style={styles.card}>
           <h2 style={styles.cardTitle}>Calories du jour</h2>
@@ -88,7 +92,7 @@ export default function Dashboard() {
       </div>
 
       {/* Actions rapides */}
-      <div style={styles.actions}>
+      <div className="dash-actions">
         <Link to="/nutrition" style={styles.actionBtn}>+ Ajouter un repas</Link>
         <Link to="/entrainement" style={{ ...styles.actionBtn, background: '#0F172A' }}>+ Ajouter une séance</Link>
       </div>
@@ -97,7 +101,7 @@ export default function Dashboard() {
 }
 
 const styles = {
-  page:      { padding: '24px', maxWidth: '1200px', margin: '0 auto' },
+  page:      { padding: '24px', maxWidth: '1200px', margin: '0 auto' }, // kept for ref
   loading:   { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#64748B' },
   header:    { marginBottom: '24px' },
   title:     { fontSize: '30px', fontWeight: 700, color: '#0F172A' },

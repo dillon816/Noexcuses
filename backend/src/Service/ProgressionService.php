@@ -75,6 +75,7 @@ class ProgressionService
             'proteines'          => $journal ? (float) $journal->getProteinesTotales() : 0,
             'glucides'           => $journal ? (float) $journal->getGlucidesTotaux() : 0,
             'lipides'            => $journal ? (float) $journal->getLipidesTotaux() : 0,
+            'fibres'             => $journal ? (float) $journal->getFibresTotales() : 0,
             'derniereSeance'     => $seances ? [
                 'nom'    => $seances[0]->getNom(),
                 'date'   => $seances[0]->getDateSeance()->format('Y-m-d'),

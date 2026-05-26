@@ -14,6 +14,23 @@ class AuthController extends AbstractController
 {
     public function __construct(private readonly AuthService $authService) {}
 
+    #[Route('/login', name: 'api_login', methods: ['POST'])]
+    public function login(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true) ?? [];
+
+        if (empty($data['email']) || empty($data['password'])) {
+            return $this->json(['error' => 'Email et mot de passe requis.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $token = $this->authService->login($data['email'], $data['password']);
+            return $this->json(['token' => $token]);
+        } catch (\InvalidArgumentException) {
+            return $this->json(['error' => 'Identifiants invalides.'], Response::HTTP_UNAUTHORIZED);
+        }
+    }
+
     #[Route('/register', name: 'api_register', methods: ['POST'])]
     public function register(Request $request): JsonResponse
     {

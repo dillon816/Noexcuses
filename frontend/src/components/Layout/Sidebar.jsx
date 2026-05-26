@@ -27,13 +27,12 @@ export default function Sidebar() {
   const { logout } = useAuth();
 
   return (
-    <nav style={{
+    <nav className="layout-sidebar" style={{
       width: 'var(--sidebar-width)',
       background: 'var(--color-sidebar)',
       height: '100vh',
       position: 'fixed',
       left: 0, top: 0,
-      display: 'flex',
       flexDirection: 'column',
       paddingTop: '24px',
     }}>

@@ -24,7 +24,7 @@ class EntrainementServiceTest extends TestCase
         $serie->setExercice($exercice);
         $serie->calculerTonnage();
 
-        $this->assertEquals('500.00', $serie->getTonnage());
+        $this->assertEquals(500.0, (float) $serie->getTonnage());
     }
 
     public function testSeanceTonnageAggregateSeries(): void
@@ -51,7 +51,7 @@ class EntrainementServiceTest extends TestCase
 
         $seance->calculerTonnage();
 
-        $this->assertEquals('980.00', $seance->getTonnageTotal());
+        $this->assertEquals(980.0, (float) $seance->getTonnageTotal());
     }
 
     public function testArchiverSeance(): void

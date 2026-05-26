@@ -29,11 +29,11 @@ export default function Progression() {
   };
 
   return (
-    <div style={styles.page}>
+    <div className="page-wrap mid" style={{ margin: '0 auto' }}>
       <h1 style={styles.title}>Progression</h1>
 
       {/* Tabs */}
-      <div style={styles.tabs}>
+      <div className="tabs-bar">
         {TABS.map((t) => (
           <button
             key={t}

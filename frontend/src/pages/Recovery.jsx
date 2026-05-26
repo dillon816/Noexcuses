@@ -7,28 +7,45 @@ export default function Recovery() {
   const [loading, setLoading]   = useState(false);
   const [msg, setMsg]           = useState('');
 
-  useEffect(() => { getScore().then((r) => setScore(r.data)).catch(() => {}); }, []);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getScore()
+      .then((r) => setScore(r.data))
+      .catch(() => setError('Impossible de charger le score de récupération.'));
+  }, []);
 
   const handleCalc = async () => {
     setLoading(true);
+    setError('');
     try {
       const r = await calculateScore();
       setScore(r.data);
+    } catch {
+      setError('Erreur lors du calcul du score. Vérifiez que vous avez enregistré du sommeil.');
     } finally { setLoading(false); }
   };
 
   const handleSleep = async (e) => {
     e.preventDefault();
-    await logSommeil({ heuresSommeil: parseFloat(sleep.heuresSommeil), qualite: parseInt(sleep.qualite), dateNuit: sleep.dateNuit });
-    setMsg('Sommeil enregistré !');
-    setTimeout(() => setMsg(''), 3000);
+    setError('');
+    try {
+      await logSommeil({ heuresSommeil: parseFloat(sleep.heuresSommeil), qualite: parseInt(sleep.qualite), dateNuit: sleep.dateNuit });
+      setMsg('Sommeil enregistré !');
+      setSleep({ ...sleep, heuresSommeil: '' });
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setError('Erreur lors de l\'enregistrement du sommeil.');
+    }
   };
 
   const color = score?.score >= 70 ? '#22C55E' : score?.score >= 40 ? '#F59E0B' : '#EA580C';
 
   return (
-    <div style={styles.page}>
+    <div className="page-wrap tight" style={{ margin: '0 auto' }}>
       <h1 style={styles.title}>Recovery Budget</h1>
+
+      {error && <div style={styles.errorBanner}>{error}</div>}
 
       {/* Score */}
       <div style={styles.card}>
@@ -122,5 +139,6 @@ const styles = {
   label:     { display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' },
   input:     { width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px' },
   btn:       { padding: '10px 20px', background: '#22C55E', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' },
-  success:   { background: '#F0FDF4', color: '#16A34A', padding: '10px', borderRadius: '8px', fontSize: '14px', marginBottom: '8px' },
+  success:     { background: '#F0FDF4', color: '#16A34A', padding: '10px', borderRadius: '8px', fontSize: '14px', marginBottom: '8px' },
+  errorBanner: { background: '#FEF2F2', color: '#DC2626', padding: '10px 14px', borderRadius: '8px', fontSize: '14px', marginBottom: '12px' },
 };

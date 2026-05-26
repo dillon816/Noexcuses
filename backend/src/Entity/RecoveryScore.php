@@ -8,6 +8,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: RecoveryScoreRepository::class)]
 #[ORM\Table(name: 'recovery_score')]
 #[ORM\UniqueConstraint(name: 'uniq_recovery_user_date', columns: ['id_utilisateur', 'date_calcul'])]
+#[ORM\HasLifecycleCallbacks]
 class RecoveryScore
 {
     public const RECOMMANDATION_REPOS    = 'Repos recommandé';

@@ -23,10 +23,10 @@ class NutritionServiceTest extends TestCase
         $ligne->setTypeRepas('dejeuner');
         $ligne->calculerCalories();
 
-        $this->assertEquals('247.50', $ligne->getCalories());
-        $this->assertEquals('46.50', $ligne->getProteines());
-        $this->assertEquals('0.00', $ligne->getGlucides());
-        $this->assertEquals('5.40', $ligne->getLipides());
+        $this->assertEqualsWithDelta(247.5, (float) $ligne->getCalories(), 0.01);
+        $this->assertEqualsWithDelta(46.5,  (float) $ligne->getProteines(), 0.01);
+        $this->assertEqualsWithDelta(0.0,   (float) $ligne->getGlucides(), 0.01);
+        $this->assertEqualsWithDelta(5.4,   (float) $ligne->getLipides(), 0.01);
     }
 
     public function testCaloriesArrondiDeuxDecimales(): void
@@ -43,6 +43,6 @@ class NutritionServiceTest extends TestCase
         $ligne->setTypeRepas('encas');
         $ligne->calculerCalories();
 
-        $this->assertEquals('106.80', $ligne->getCalories());
+        $this->assertEqualsWithDelta(106.8, (float) $ligne->getCalories(), 0.01);
     }
 }

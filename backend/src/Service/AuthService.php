@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
@@ -15,6 +16,7 @@ class AuthService
         private readonly UserRepository              $userRepository,
         private readonly UserPasswordHasherInterface $hasher,
         private readonly ValidatorInterface          $validator,
+        private readonly JWTTokenManagerInterface    $jwtManager,
     ) {}
 
     public function register(string $email, string $password, string $prenom, string $nom): User
@@ -38,5 +40,15 @@ class AuthService
         $this->em->flush();
 
         return $user;
+    }
+
+    public function login(string $email, string $password): string
+    {
+        $user = $this->userRepository->findByEmail($email);
+        if (!$user || !$this->hasher->isPasswordValid($user, $password)) {
+            throw new \InvalidArgumentException('Identifiants invalides.');
+        }
+
+        return $this->jwtManager->create($user);
     }
 }

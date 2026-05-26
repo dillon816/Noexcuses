@@ -30,27 +30,36 @@ class EntrainementService
         return $seance;
     }
 
-    public function addSerie(Seance $seance, int $exerciceId, int $repetitions, float $chargeKg, int $numeroSerie = 1): SerieExercice
+    /** Crée nbSeries séries identiques et retourne la dernière. */
+    public function addSerie(Seance $seance, string $exerciceNom, int $repetitions, float $chargeKg, int $nbSeries = 1): SerieExercice
     {
-        $exercice = $this->em->getRepository(Exercice::class)->find($exerciceId);
+        $exercice = $this->em->getRepository(Exercice::class)->findOneBy(['nom' => $exerciceNom]);
         if (!$exercice) {
-            throw new \InvalidArgumentException('Exercice introuvable.');
+            $exercice = new Exercice();
+            $exercice->setNom($exerciceNom);
+            $this->em->persist($exercice);
         }
 
-        $serie = new SerieExercice();
-        $serie->setExercice($exercice);
-        $serie->setRepetitions($repetitions);
-        $serie->setChargeKg((string) $chargeKg);
-        $serie->setNumeroSerie($numeroSerie);
-        $serie->calculerTonnage();
+        $nbSeries = max(1, min($nbSeries, 20));
+        $derniere = null;
 
-        $seance->addSerie($serie);
+        for ($i = 1; $i <= $nbSeries; $i++) {
+            $serie = new SerieExercice();
+            $serie->setExercice($exercice);
+            $serie->setRepetitions($repetitions);
+            $serie->setChargeKg((string) $chargeKg);
+            $serie->setNumeroSerie($i);
+            $serie->calculerTonnage();
+
+            $seance->addSerie($serie);
+            $this->em->persist($serie);
+            $derniere = $serie;
+        }
+
         $seance->calculerTonnage();
-
-        $this->em->persist($serie);
         $this->em->flush();
 
-        return $serie;
+        return $derniere;
     }
 
     public function terminerSeance(Seance $seance): Seance
@@ -74,6 +83,22 @@ class EntrainementService
         $this->em->flush();
     }
 
+    public function updateSerie(Seance $seance, int $serieId, int $repetitions, float $chargeKg): SerieExercice
+    {
+        $serie = $this->em->getRepository(SerieExercice::class)->find($serieId);
+        if (!$serie || $serie->getSeance()->getId() !== $seance->getId()) {
+            throw new \InvalidArgumentException('Série introuvable.');
+        }
+
+        $serie->setRepetitions($repetitions);
+        $serie->setChargeKg((string) $chargeKg);
+        $serie->calculerTonnage();
+        $seance->calculerTonnage();
+        $this->em->flush();
+
+        return $serie;
+    }
+
     public function removeSerie(Seance $seance, int $serieId): void
     {
         $serie = $this->em->getRepository(SerieExercice::class)->find($serieId);
@@ -85,6 +110,37 @@ class EntrainementService
         $this->em->remove($serie);
         $seance->calculerTonnage();
         $this->em->flush();
+    }
+
+    /**
+     * Crée une copie d'une séance (même exercices / reps / charge) datée d'aujourd'hui.
+     */
+    public function dupliquerSeance(User $user, int $seanceId): Seance
+    {
+        $original = $this->getSeance($user, $seanceId);
+
+        $nouvelle = new Seance();
+        $nouvelle->setUtilisateur($user);
+        $nouvelle->setNom($original->getNom());
+        $nouvelle->setDateSeance(new \DateTime());
+        $nouvelle->setNotes($original->getNotes());
+        $this->em->persist($nouvelle);
+
+        foreach ($original->getSeries() as $serie) {
+            $copie = new SerieExercice();
+            $copie->setExercice($serie->getExercice());
+            $copie->setRepetitions($serie->getRepetitions());
+            $copie->setChargeKg($serie->getChargeKg());
+            $copie->setNumeroSerie($serie->getNumeroSerie());
+            $copie->calculerTonnage();
+            $nouvelle->addSerie($copie);
+            $this->em->persist($copie);
+        }
+
+        $nouvelle->calculerTonnage();
+        $this->em->flush();
+
+        return $nouvelle;
     }
 
     /** @return Seance[] */

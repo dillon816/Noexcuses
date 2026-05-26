@@ -19,14 +19,28 @@ class ProfilService
 
     public function updateProfil(User $user, array $data): User
     {
-        if (isset($data['prenom']))        $user->setPrenom($data['prenom']);
-        if (isset($data['nom']))           $user->setNom($data['nom']);
-        if (isset($data['taille']))        $user->setTaille((int) $data['taille']);
-        if (isset($data['sexe']))          $user->setSexe($data['sexe']);
-        if (isset($data['niveauActivite'])) $user->setNiveauActivite($data['niveauActivite']);
-        if (isset($data['dateNaissance'])) {
+        if (isset($data['prenom']) && $data['prenom'] !== '')
+            $user->setPrenom($data['prenom']);
+        if (isset($data['nom']) && $data['nom'] !== '')
+            $user->setNom($data['nom']);
+        if (array_key_exists('taille', $data))
+            $user->setTaille($data['taille'] !== '' && $data['taille'] !== null ? (int) $data['taille'] : null);
+        // Convert empty strings → null so Choice validator doesn't reject them
+        if (array_key_exists('sexe', $data))
+            $user->setSexe($data['sexe'] !== '' ? $data['sexe'] : null);
+        if (array_key_exists('niveauActivite', $data))
+            $user->setNiveauActivite($data['niveauActivite'] !== '' ? $data['niveauActivite'] : null);
+        if (isset($data['dateNaissance']) && $data['dateNaissance'] !== '')
             $user->setDateNaissance(new \DateTime($data['dateNaissance']));
-        }
+        // Calories objectif — save directly on user so dashboard reads it immediately
+        if (array_key_exists('caloriesObjectif', $data))
+            $user->setCaloriesObjectif($data['caloriesObjectif'] !== '' && $data['caloriesObjectif'] !== null
+                ? (int) $data['caloriesObjectif']
+                : null);
+        if (array_key_exists('poidsInitial', $data))
+            $user->setPoidsInitial($data['poidsInitial'] !== '' && $data['poidsInitial'] !== null
+                ? (string) $data['poidsInitial']
+                : null);
 
         $errors = $this->validator->validate($user);
         if (count($errors) > 0) {

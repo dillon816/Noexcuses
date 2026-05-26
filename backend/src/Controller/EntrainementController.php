@@ -84,8 +84,8 @@ class EntrainementController extends AbstractController
     {
         $data = json_decode($request->getContent(), true) ?? [];
 
-        foreach (['exerciceId', 'repetitions', 'chargeKg'] as $f) {
-            if (!isset($data[$f])) {
+        foreach (['exerciceNom', 'repetitions', 'chargeKg'] as $f) {
+            if (empty($data[$f])) {
                 return $this->json(['error' => "$f est requis."], Response::HTTP_BAD_REQUEST);
             }
         }
@@ -94,15 +94,74 @@ class EntrainementController extends AbstractController
             $seance = $this->entrainementService->getSeance($this->getUser(), $id);
             $serie  = $this->entrainementService->addSerie(
                 $seance,
-                (int)   $data['exerciceId'],
+                trim($data['exerciceNom']),
                 (int)   $data['repetitions'],
                 (float) $data['chargeKg'],
-                (int)   ($data['numeroSerie'] ?? 1),
+                (int)   ($data['nbSeries'] ?? 1),
             );
 
             return $this->json(['message' => 'Série ajoutée.', 'id' => $serie->getId(), 'tonnage' => (float) $serie->getTonnage()], Response::HTTP_CREATED);
         } catch (\InvalidArgumentException $e) {
             return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        }
+    }
+
+    #[Route('/{id}/series/{serieId}', name: 'api_seances_update_serie', methods: ['PATCH'])]
+    public function updateSerie(int $id, int $serieId, Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true) ?? [];
+
+        foreach (['repetitions', 'chargeKg'] as $f) {
+            if (!isset($data[$f])) {
+                return $this->json(['error' => "$f est requis."], Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        try {
+            $seance = $this->entrainementService->getSeance($this->getUser(), $id);
+            $serie  = $this->entrainementService->updateSerie(
+                $seance,
+                $serieId,
+                (int)   $data['repetitions'],
+                (float) $data['chargeKg'],
+            );
+
+            return $this->json([
+                'message'  => 'Série mise à jour.',
+                'tonnage'  => (float) $serie->getTonnage(),
+                'tonnageSeance' => (float) $seance->getTonnageTotal(),
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
+        }
+    }
+
+    #[Route('/{id}/series/{serieId}', name: 'api_seances_delete_serie', methods: ['DELETE'])]
+    public function deleteSerie(int $id, int $serieId): JsonResponse
+    {
+        try {
+            $seance = $this->entrainementService->getSeance($this->getUser(), $id);
+            $this->entrainementService->removeSerie($seance, $serieId);
+
+            return $this->json(['message' => 'Série supprimée.', 'tonnageSeance' => (float) $seance->getTonnageTotal()]);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
+        }
+    }
+
+    #[Route('/{id}/dupliquer', name: 'api_seances_dupliquer', methods: ['POST'])]
+    public function dupliquer(int $id): JsonResponse
+    {
+        try {
+            $seance = $this->entrainementService->dupliquerSeance($this->getUser(), $id);
+
+            return $this->json([
+                'message' => 'Séance dupliquée.',
+                'id'      => $seance->getId(),
+                'nom'     => $seance->getNom(),
+            ], Response::HTTP_CREATED);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
         }
     }
 

@@ -30,7 +30,7 @@ export default function Profil() {
   });
 
   return (
-    <div style={styles.page}>
+    <div className="page-wrap tight" style={{ margin: '0 auto' }}>
       <h1 style={styles.title}>Mon Profil</h1>
 
       {msg   && <div style={styles.success}>{msg}</div>}
@@ -39,12 +39,12 @@ export default function Profil() {
       <div style={styles.card}>
         <h2 style={styles.cardTitle}>Informations personnelles</h2>
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="form-grid-2">
             <Field label="Prénom"  {...f('prenom')} />
             <Field label="Nom"     {...f('nom')} />
           </div>
           <Field label="Email" value={profil.email} disabled />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="form-grid-2">
             <div>
               <label style={styles.label}>Sexe</label>
               <select style={styles.input} value={form.sexe ?? ''} onChange={(e) => setForm({ ...form, sexe: e.target.value })}>
@@ -56,7 +56,11 @@ export default function Profil() {
             </div>
             <Field label="Taille (cm)" type="number" {...f('taille')} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="form-grid-2">
+            <Field label="Date de naissance" type="date" {...f('dateNaissance')} />
+            <Field label="Poids initial (kg)" type="number" step="0.1" {...f('poidsInitial')} />
+          </div>
+          <div className="form-grid-2">
             <div>
               <label style={styles.label}>Niveau d'activité</label>
               <select style={styles.input} value={form.niveauActivite ?? ''} onChange={(e) => setForm({ ...form, niveauActivite: e.target.value })}>
@@ -68,7 +72,7 @@ export default function Profil() {
                 <option value="extrêmement actif">Extrêmement actif</option>
               </select>
             </div>
-            <Field label="Objectif calories" type="number" {...f('caloriesObjectif')} />
+            <Field label="Objectif calories / jour" type="number" {...f('caloriesObjectif')} />
           </div>
           <button style={{ ...styles.btn, marginTop: '20px' }} type="submit">Sauvegarder</button>
         </form>
@@ -77,13 +81,14 @@ export default function Profil() {
   );
 }
 
-function Field({ label, value, onChange, type = 'text', disabled }) {
+function Field({ label, value, onChange, type = 'text', disabled, step, min, max }) {
   return (
     <div>
       <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', marginTop: '14px', color: '#0F172A' }}>{label}</label>
       <input
         style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', background: disabled ? '#F8FAFC' : '#fff' }}
         type={type} value={value ?? ''} onChange={onChange} disabled={disabled}
+        step={step} min={min} max={max}
       />
     </div>
   );
