@@ -16,6 +16,7 @@ class EntrainementService
         private readonly SeanceRepository       $seanceRepo,
     ) {}
 
+    /** Initialise une nouvelle séance en statut "en cours" pour l'utilisateur. */
     public function createSeance(User $user, string $nom, \DateTimeInterface $date, ?string $notes = null): Seance
     {
         $seance = new Seance();
@@ -30,9 +31,14 @@ class EntrainementService
         return $seance;
     }
 
-    /** Crée nbSeries séries identiques et retourne la dernière. */
+    /**
+     * Ajoute une ou plusieurs séries identiques à la séance.
+     * Si l'exercice n'existe pas encore en BDD, il est créé à la volée.
+     * Le tonnage total de la séance est recalculé après chaque ajout.
+     */
     public function addSerie(Seance $seance, string $exerciceNom, int $repetitions, float $chargeKg, int $nbSeries = 1): SerieExercice
     {
+        // Récupère l'exercice existant ou le crée si c'est la première fois
         $exercice = $this->em->getRepository(Exercice::class)->findOneBy(['nom' => $exerciceNom]);
         if (!$exercice) {
             $exercice = new Exercice();
@@ -40,6 +46,7 @@ class EntrainementService
             $this->em->persist($exercice);
         }
 
+        // Sécurité : entre 1 et 20 séries maximum
         $nbSeries = max(1, min($nbSeries, 20));
         $derniere = null;
 
@@ -62,6 +69,7 @@ class EntrainementService
         return $derniere;
     }
 
+    /** Marque la séance comme terminée et recalcule le tonnage final. */
     public function terminerSeance(Seance $seance): Seance
     {
         $seance->setStatut(Seance::STATUT_TERMINEE);
@@ -71,18 +79,25 @@ class EntrainementService
         return $seance;
     }
 
+    /** Passe la séance en statut archivée (elle reste visible dans l'historique). */
     public function archiverSeance(Seance $seance): void
     {
         $seance->archiver();
         $this->em->flush();
     }
 
+    /** Supprime définitivement une séance et toutes ses séries (cascade Doctrine). */
     public function deleteSeance(Seance $seance): void
     {
         $this->em->remove($seance);
         $this->em->flush();
     }
 
+    /**
+     * Modifie les reps et la charge d'une série existante.
+     * On vérifie que la série appartient bien à la séance avant de modifier.
+     * Le tonnage est recalculé au niveau série et au niveau séance.
+     */
     public function updateSerie(Seance $seance, int $serieId, int $repetitions, float $chargeKg): SerieExercice
     {
         $serie = $this->em->getRepository(SerieExercice::class)->find($serieId);
@@ -99,6 +114,10 @@ class EntrainementService
         return $serie;
     }
 
+    /**
+     * Supprime une série et met à jour le tonnage total de la séance.
+     * Vérifie d'abord que la série fait bien partie de la séance (sécurité).
+     */
     public function removeSerie(Seance $seance, int $serieId): void
     {
         $serie = $this->em->getRepository(SerieExercice::class)->find($serieId);
@@ -113,7 +132,8 @@ class EntrainementService
     }
 
     /**
-     * Crée une copie d'une séance (même exercices / reps / charge) datée d'aujourd'hui.
+     * Duplique une séance existante avec tous ses exercices, reps et charges.
+     * La copie est datée d'aujourd'hui, prête à être réutilisée pour une nouvelle session.
      */
     public function dupliquerSeance(User $user, int $seanceId): Seance
     {
@@ -143,12 +163,16 @@ class EntrainementService
         return $nouvelle;
     }
 
-    /** @return Seance[] */
+    /** Retourne les dernières séances de l'utilisateur, triées par date décroissante. @return Seance[] */
     public function getSeances(User $user, int $limit = 20): array
     {
         return $this->seanceRepo->findByUser($user, $limit);
     }
 
+    /**
+     * Récupère une séance par son ID en vérifiant qu'elle appartient à l'utilisateur.
+     * Lève une exception si la séance n'existe pas ou appartient à quelqu'un d'autre.
+     */
     public function getSeance(User $user, int $id): Seance
     {
         $seance = $this->seanceRepo->find($id);

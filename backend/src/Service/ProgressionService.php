@@ -15,6 +15,9 @@ class ProgressionService
         private readonly SeanceRepository             $seanceRepo,
     ) {}
 
+    /**
+     * Retourne l'historique de poids sur les N derniers jours.
+     */
     public function getStatsPoids(User $user, int $days = 90): array
     {
         $entries = $this->poidsRepo->findByUser($user, $days);
@@ -25,6 +28,10 @@ class ProgressionService
         ], $entries);
     }
 
+    /**
+     * Retourne les stats caloriques et macros jour par jour sur la période.
+     * Inclut le bilan (calories consommées - objectif) pour repérer les jours en déficit ou en surplus.
+     */
     public function getStatsCalories(User $user, int $days = 30): array
     {
         $from = (new \DateTime())->modify("-{$days} days");
@@ -44,6 +51,10 @@ class ProgressionService
         ], $journals);
     }
 
+    /**
+     * Retourne les séances d'entraînement sur la période avec tonnage et nombre de séries.
+     * Sert à tracer l'évolution de la charge d'entraînement .
+     */
     public function getStatsEntrainement(User $user, int $days = 30): array
     {
         $from = (new \DateTime())->modify("-{$days} days");
@@ -60,6 +71,10 @@ class ProgressionService
         ], $seances);
     }
 
+    /**
+     * Rassemble les données du jour pour le dashboard (calories, macros, dernière séance).
+     * Si aucun journal ou aucune séance n'existe pour aujourd'hui, les valeurs sont à 0/null.
+     */
     public function getDashboardSummary(User $user): array
     {
         $today    = new \DateTime();
@@ -77,8 +92,8 @@ class ProgressionService
             'lipides'            => $journal ? (float) $journal->getLipidesTotaux() : 0,
             'fibres'             => $journal ? (float) $journal->getFibresTotales() : 0,
             'derniereSeance'     => $seances ? [
-                'nom'    => $seances[0]->getNom(),
-                'date'   => $seances[0]->getDateSeance()->format('Y-m-d'),
+                'nom'     => $seances[0]->getNom(),
+                'date'    => $seances[0]->getDateSeance()->format('Y-m-d'),
                 'tonnage' => (float) $seances[0]->getTonnageTotal(),
             ] : null,
         ];

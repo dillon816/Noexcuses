@@ -31,11 +31,17 @@ class NutritionService
      */
     private const CACHE_MIN_RESULTS = 5;
 
+    /**
+     * Point d'entrée principal pour chercher un aliment par nom.
+     * On vérifie d'abord le cache local (table aliment en BDD). Si on a au moins
+     * CACHE_MIN_RESULTS résultats, pas besoin d'appeler l'API externe.
+     * Sinon on lance le pipeline IA + CalorieNinjas pour enrichir la BDD.
+     */
     public function searchAliment(string $term): array
     {
         $termNorm = $this->removeAccents(mb_strtolower(trim($term), 'UTF-8'));
 
-        // Cache local — retourner seulement si on a assez de variété
+        // Cache local : retourner seulement si on a assez de variété
         $local = array_values(array_filter(
             $this->alimentRepo->searchByName($term),
             fn(Aliment $a) => str_starts_with(
@@ -48,11 +54,11 @@ class NutritionService
             return $local;
         }
 
-        // Pas assez de variété → pipeline IA + CalorieNinjas
-        // (searchCalorieNinjas gère lui-même le cache par nomApi)
+        // Pas assez de variété : pipeline IA + CalorieNinjas
+        // searchCalorieNinjas gère lui-même la mise en cache par nomApi
         $fromApi = $this->searchCalorieNinjas($term);
 
-        // Si l'API échoue, on retourne ce qu'on a en cache (même incomplet)
+        // Si l'API échoue, on retourne ce qu'on a en cache quand même
         return !empty($fromApi) ? $fromApi : $local;
     }
 
@@ -460,11 +466,22 @@ class NutritionService
         return $term; // Retourne le terme original si aucune traduction
     }
 
+    /**
+     * Pipeline complet pour récupérer des données nutritionnelles depuis CalorieNinjas.
+     *
+     * Etape 1 : Construire la requête en anglais (IA Mistral variantes > IA simple > dict statique)
+     * Etape 2 : Appel HTTP CalorieNinjas
+     * Etape 3 : Séparer les résultats déjà en cache de ceux à traduire
+     * Etape 4 : Traduction batch EN > FR par Mistral
+     * Etape 5 : Normalisation /100g et persistence en BDD
+     *
+     * Les valeurs nutritionnelles viennent uniquement de CalorieNinjas, l'IA ne sert qu'à traduire.
+     */
     private function searchCalorieNinjas(string $term): array
     {
-        // ── 1. Génération de la requête CalorieNinjas ─────────────────────
-        // Priorité : variantes spécifiques générées par IA (multi-résultats)
-        // Fallback 1 : traduction simple IA  |  Fallback 2 : dict statique
+        // Etape 1 : construction de la requête
+        // Priorité aux variantes générées par IA (ex: "poulet" -> "chicken breast chicken thigh...")
+        // Fallback 1 : traduction simple IA  |  Fallback 2 : dict statique interne
         $queryTerm = $this->aiTranslation->generateVariationsQuery($term);
 
         if (empty($queryTerm)) {
@@ -493,7 +510,7 @@ class NutritionService
                 return [];
             }
 
-            // ── 2. Séparer résultats déjà en cache (par nomApi) ───────────
+            // Etape 2 : séparer ce qui est déjà en BDD (par nomApi) pour éviter les doublons
             $toTranslate = [];
             $cachedByEn  = [];
 
@@ -510,14 +527,13 @@ class NutritionService
                 }
             }
 
-            // ── 3. Traduction EN → FR (batch IA) ──────────────────────────
-            //    Les valeurs nutritionnelles viennent EXCLUSIVEMENT de CalorieNinjas.
-            //    L'IA ne fait que traduire/reformuler les noms.
+            // Etape 3 : traduction batch EN -> FR via Mistral (un seul appel API pour tous)
+            // L'IA ne touche pas aux calories/macros, elle traduit juste les noms d'affichage
             $translations = !empty($toTranslate)
                 ? $this->aiTranslation->translateNamesToFr($toTranslate)
                 : [];
 
-            // ── 4. Construire et persister les aliments ────────────────────
+            // Etape 4 :  on sauvegarde les aliments récupérés depuis l'API dans notre BDD.
             $results = [];
 
             foreach ($items as $item) {
@@ -535,7 +551,7 @@ class NutritionService
                     continue;
                 }
 
-                // CalorieNinjas retourne les valeurs pour serving_size_g grammes → normalise /100g
+                // CalorieNinjas donne les valeurs pour serving_size_g grammes, on normalise tout en /100g
                 $servingG = (float) ($item['serving_size_g'] ?? 100);
                 $factor   = $servingG > 0 ? 100 / $servingG : 1;
 
@@ -585,6 +601,10 @@ class NutritionService
         }
     }
 
+    /**
+     * Ajoute un aliment au journal du jour (créé automatiquement si inexistant).
+     * Les calories de la ligne sont calculées à partir des valeurs /100g et de la quantité saisie.
+     */
     public function addRepas(User $user, int $alimentId, float $quantiteG, string $typeRepas, ?\DateTimeInterface $date = null): LigneJournal
     {
         $date ??= new \DateTime();
@@ -594,6 +614,7 @@ class NutritionService
             throw new \InvalidArgumentException('Aliment introuvable.');
         }
 
+        // On récupère le journal du jour, ou on en crée un nouveau si c'est le premier repas
         $journal = $this->journalRepo->findByUserAndDate($user, $date);
         if (!$journal) {
             $journal = new JournalAlimentaire();
@@ -617,11 +638,16 @@ class NutritionService
         return $ligne;
     }
 
+    /** Retourne le journal alimentaire d'un utilisateur pour une date donnée (ou null si vide). */
     public function getJournal(User $user, \DateTimeInterface $date): ?JournalAlimentaire
     {
         return $this->journalRepo->findByUserAndDate($user, $date);
     }
 
+    /**
+     * Supprime une ligne du journal et recalcule les totaux du jour.
+     * On vérifie que la ligne appartient bien à l'utilisateur avant de supprimer.
+     */
     public function removeRepas(User $user, int $ligneId): void
     {
         $ligne = $this->em->getRepository(LigneJournal::class)->find($ligneId);
@@ -633,6 +659,7 @@ class NutritionService
         $journal->removeLigne($ligne);
         $this->em->remove($ligne);
         $this->em->flush();
+        // Recalcul des totaux après suppression
         $journal->mettreAJourTotaux();
         $this->em->flush();
     }

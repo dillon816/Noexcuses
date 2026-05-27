@@ -17,6 +17,11 @@ class ProfilService
         private readonly ValidatorInterface     $validator,
     ) {}
 
+    /**
+     * Met à jour le profil de l'utilisateur de façon partielle (PATCH).
+     * Seuls les champs présents dans $data sont modifiés, les autres restent inchangés.
+     * Les chaînes vides sont converties en null pour que les validators Symfony ne bloquent pas.
+     */
     public function updateProfil(User $user, array $data): User
     {
         if (isset($data['prenom']) && $data['prenom'] !== '')
@@ -25,14 +30,14 @@ class ProfilService
             $user->setNom($data['nom']);
         if (array_key_exists('taille', $data))
             $user->setTaille($data['taille'] !== '' && $data['taille'] !== null ? (int) $data['taille'] : null);
-        // Convert empty strings → null so Choice validator doesn't reject them
+        // Les chaînes vides → null pour que le validator Choice ne rejette pas les champs optionnels
         if (array_key_exists('sexe', $data))
             $user->setSexe($data['sexe'] !== '' ? $data['sexe'] : null);
         if (array_key_exists('niveauActivite', $data))
             $user->setNiveauActivite($data['niveauActivite'] !== '' ? $data['niveauActivite'] : null);
         if (isset($data['dateNaissance']) && $data['dateNaissance'] !== '')
             $user->setDateNaissance(new \DateTime($data['dateNaissance']));
-        // Calories objectif — save directly on user so dashboard reads it immediately
+        // L'objectif calorique est aussi stocké sur l'entité User pour un accès rapide depuis le dashboard
         if (array_key_exists('caloriesObjectif', $data))
             $user->setCaloriesObjectif($data['caloriesObjectif'] !== '' && $data['caloriesObjectif'] !== null
                 ? (int) $data['caloriesObjectif']
@@ -52,8 +57,13 @@ class ProfilService
         return $user;
     }
 
+    /**
+     * Crée un nouvel objectif nutritionnel et désactive l'ancien s'il en existe un.
+     * L'objectif calorique est aussi mis à jour directement sur l'utilisateur.
+     */
     public function setObjectif(User $user, string $type, int $caloriesJour, ?int $proteines = null, ?int $glucides = null, ?int $lipides = null): Objectif
     {
+        // On désactive l'objectif actuel avant d'en créer un nouveau
         $current = $this->objectifRepo->findActiveForUser($user);
         if ($current) {
             $current->setActif(false);
@@ -67,6 +77,7 @@ class ProfilService
         $objectif->setGlucidesG($glucides);
         $objectif->setLipidesG($lipides);
 
+        // Sync sur l'entité User pour que le dashboard puisse lire caloriesObjectif directement
         $user->setCaloriesObjectif($caloriesJour);
 
         $this->em->persist($objectif);
@@ -75,6 +86,7 @@ class ProfilService
         return $objectif;
     }
 
+    /** Enregistre une pesée dans l'historique de poids. Utilisé pour les graphiques de progression. */
     public function logPoids(User $user, float $poids, ?\DateTimeInterface $date = null): PoidsHistorique
     {
         $date ??= new \DateTime();

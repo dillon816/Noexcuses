@@ -9,68 +9,87 @@ Projet fil rouge — CDA Bachelor 3 FullStack · IPSSI · Dillon Azag
 
 | Couche | Technologie |
 |--------|-------------|
-| Backend API | Symfony 6.4 + PHP 8.2 |
+| Backend API | Symfony 6.4 + PHP 8.3 |
 | ORM | Doctrine + Migrations |
 | Auth | LexikJWT (Bearer token) |
 | Base de données | MySQL 8.0 |
 | Frontend | React 18 SPA + React Router v6 |
 | HTTP Client | Axios |
 | Graphiques | Recharts |
-| API externe | OpenFoodFacts |
+| API externe | CalorieNinjas + IA Mistral |
 | Infra | Docker Compose (nginx + php-fpm + mysql + node) |
-| CI/CD | GitHub Actions (PHPUnit + ESLint + build) |
+| CI/CD | GitHub Actions (PHPUnit + npm build) |
 
 ---
 
 ## Démarrage rapide
 
 ### Prérequis
-- Docker Desktop
+- PHP 8.3 + Composer
+- Node 20 + npm
+- MySQL 8.0
+- Symfony CLI (optionnel)
 - Git
 
-### 1. Cloner et configurer
+> **Note :** Le déploiement Docker complet est prévu pour le Jalon 6. Les instructions ci-dessous permettent de lancer l'application en local sans Docker.
+
+### 1. Cloner le projet
 
 ```bash
-git clone <url-du-repo>
-cd noexcuses
-
-# Variables d'environnement backend
-cp backend/.env.example backend/.env.local
-# Éditer backend/.env.local : APP_SECRET, JWT_PASSPHRASE
-
-# Variable frontend
-cp frontend/.env.example frontend/.env.local
+git clone https://github.com/dillon816/Noexcuses.git
+cd Noexcuses
 ```
 
-### 2. Générer les clés JWT
+### 2. Configurer le backend
 
 ```bash
-mkdir -p backend/config/jwt
-openssl genrsa -out backend/config/jwt/private.pem -aes256 4096
-openssl rsa -pubout -in backend/config/jwt/private.pem -out backend/config/jwt/public.pem
+cd backend
+composer install
+
+# Créer le fichier d'environnement local
+cp .env .env.local
+# Éditer .env.local : renseigner DATABASE_URL, CALORIENINJAS_API_KEY, MISTRAL_API_KEY
 ```
 
-### 3. Lancer Docker
+### 3. Générer les clés JWT
 
 ```bash
-docker compose up -d --build
+mkdir -p config/jwt
+openssl genrsa -out config/jwt/private.pem 2048
+openssl rsa -pubout -in config/jwt/private.pem -out config/jwt/public.pem
 ```
-
-Services disponibles :
-- **API Symfony** → `http://localhost/api`
-- **React** → `http://localhost:3000`
-- **MySQL** → `localhost:3306`
 
 ### 4. Initialiser la base de données
 
 ```bash
-docker exec noexcuses_symfony php bin/console doctrine:migrations:migrate --no-interaction
+php bin/console doctrine:database:create
+php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-### 5. Lancer les tests
+### 5. Lancer le backend
 
 ```bash
-docker exec noexcuses_symfony php vendor/bin/phpunit
+symfony serve
+# ou : php -S localhost:8000 -t public
+```
+
+API disponible sur `http://127.0.0.1:8000/api`
+
+### 6. Lancer le frontend
+
+```bash
+cd ../frontend
+npm install --legacy-peer-deps
+npm start
+```
+
+Frontend disponible sur `http://localhost:3000`
+
+### 7. Lancer les tests
+
+```bash
+cd backend
+vendor/bin/phpunit --testdox
 ```
 
 ---
@@ -121,9 +140,9 @@ noexcuses/
 | Injection SQL | Doctrine ORM — requêtes paramétrées uniquement |
 | XSS | React — échappement DOM natif |
 | CSRF | SPA + JWT — pas de session serveur |
-| Brute force | Symfony Rate Limiter sur `/api/login` |
+| Brute force | Prévu Jalon 6 (Symfony Rate Limiter) |
 | Secrets | `.env.local` dans `.gitignore`, jamais committés |
-| Headers | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
+| Headers sécurité | Prévus Jalon 6 (X-Frame-Options, CSP) |
 | CORS | NelmioCorsBundle configuré explicitement |
 
 ---
@@ -136,5 +155,5 @@ noexcuses/
 | 2 — Février | Méthodologie + UX/UI | ✅ |
 | 3 — Mars | Modélisation BDD | ✅ |
 | 4 — Avril | UML + Architecture | ✅ |
-| 5 — Mai | **Code bêta + tests + sécurité** | 🔄 En cours |
+| 5 — Mai | **Code bêta + tests + sécurité** | ✅ |
 | 6 — Juin | Déploiement + soutenance | ⏳ |

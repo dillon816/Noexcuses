@@ -19,6 +19,10 @@ class AuthService
         private readonly JWTTokenManagerInterface    $jwtManager,
     ) {}
 
+    /**
+     * Crée un compte utilisateur. Vérifie d'abord que l'email n'existe pas déjà,
+     * puis hache le mot de passe avec bcrypt avant de persister en base.
+     */
     public function register(string $email, string $password, string $prenom, string $nom): User
     {
         if ($this->userRepository->findByEmail($email)) {
@@ -29,6 +33,7 @@ class AuthService
         $user->setEmail($email);
         $user->setPrenom($prenom);
         $user->setNom($nom);
+        // Le mot de passe est haché par Symfony, jamais stocké en clair
         $user->setPassword($this->hasher->hashPassword($user, $password));
 
         $errors = $this->validator->validate($user);
@@ -42,6 +47,10 @@ class AuthService
         return $user;
     }
 
+    /**
+     * Vérifie les identifiants et retourne un token JWT signé si c'est bon.
+     * Le token est ensuite envoyé dans le header Authorization par le frontend.
+     */
     public function login(string $email, string $password): string
     {
         $user = $this->userRepository->findByEmail($email);

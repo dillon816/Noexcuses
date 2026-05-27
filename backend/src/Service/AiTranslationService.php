@@ -26,9 +26,9 @@ class AiTranslationService
         private readonly string              $mistralKey,
     ) {}
 
-    // ─────────────────────────────────────────────────────────────────────────
+  
     // API publique
-    // ─────────────────────────────────────────────────────────────────────────
+  
 
     /**
      * Traduit un terme alimentaire français vers l'anglais pour CalorieNinjas.
@@ -218,9 +218,9 @@ class AiTranslationService
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    
     // Helpers privés
-    // ─────────────────────────────────────────────────────────────────────────
+    
 
     private function hasKey(): bool
     {
