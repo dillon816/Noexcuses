@@ -3,11 +3,11 @@
 # Covers: Symfony, React, Docker, OS, IDE
 
 
-# ── Claude / projet ──────────────────────────────────────────────────────────
+#  Claude / projet 
 .claude/
 CLAUDE.md
 
-# ── Symfony backend ──────────────────────────────────────────────────────────
+#  Symfony backend 
 backend/.env.local
 backend/.env.local.php
 backend/.env.*.local
@@ -20,7 +20,7 @@ backend/phpcs.xml
 backend/config/jwt/private.pem
 backend/config/jwt/public.pem
 
-# ── React frontend ────────────────────────────────────────────────────────────
+#  React frontend 
 frontend/node_modules/
 frontend/build/
 frontend/dist/
@@ -32,14 +32,14 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 
-# ── Docker / environnement ────────────────────────────────────────────────────
+#  Docker / environnement 
 .env
 .env.local
 .env.prod
 docker-compose.override.yml
 docker-compose.prod.yml
 
-# ── OS ────────────────────────────────────────────────────────────────────────
+#  OS 
 .DS_Store
 .DS_Store?
 ._*
@@ -49,7 +49,7 @@ ehthumbs.db
 Thumbs.db
 desktop.ini
 
-# ── IDE ───────────────────────────────────────────────────────────────────────
+#  IDE 
 .idea/
 .vscode/
 *.swp
@@ -61,14 +61,14 @@ desktop.ini
 *.sublime-workspace
 *.sublime-project
 
-# ── Tests & couverture ────────────────────────────────────────────────────────
+#  Tests & couverture 
 backend/.phpunit.result.cache
 backend/coverage/
 frontend/coverage/
 
-# ── Logs ─────────────────────────────────────────────────────────────────────
+#  Logs 
 *.log
 logs/
 
-# ── Volumes Docker montés ─────────────────────────────────────────────────────
+#  Volumes Docker montés 
 docker/mysql/data/
