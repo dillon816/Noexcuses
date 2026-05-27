@@ -7,7 +7,7 @@ on:
     branches: [develop, main]
 
 jobs:
-  # ── Backend : Symfony / PHPUnit ────────────────────────────────────────────
+  # Backend : Symfony / PHPUnit 
   backend:
     name: Backend (PHP 8.3 / Symfony 6.4)
     runs-on: ubuntu-latest
@@ -41,7 +41,7 @@ jobs:
       - name: Run PHPUnit
         run: vendor/bin/phpunit --testdox
 
-  # ── Frontend : React / Build ──────────────────────────────────────────────
+  # Frontend : React / Build
   frontend:
     name: Frontend (Node 20 / React)
     runs-on: ubuntu-latest
