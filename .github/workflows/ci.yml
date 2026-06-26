@@ -57,17 +57,22 @@ jobs:
 
       - name: Run migrations on test DB
         env:
-          DATABASE_URL: "mysql://root:@127.0.0.1:3306/noexcuses_test?serverVersion=8.0&charset=utf8mb4"
           APP_ENV: test
-          JWT_SECRET_KEY: "%kernel.project_dir%/config/jwt/private.pem"
-          JWT_PUBLIC_KEY: "%kernel.project_dir%/config/jwt/public.pem"
+          APP_SECRET: "ci_test_secret_noexcuses"
+          DATABASE_URL: "mysql://root:@127.0.0.1:3306/noexcuses_test?serverVersion=8.0&charset=utf8mb4"
+          JWT_SECRET_KEY: "config/jwt/private.pem"
+          JWT_PUBLIC_KEY: "config/jwt/public.pem"
           JWT_PASSPHRASE: "noexcuses"
           JWT_TTL: "3600"
         run: php bin/console doctrine:migrations:migrate --no-interaction --env=test
 
       - name: Run PHPUnit
         env:
+          APP_ENV: test
+          APP_SECRET: "ci_test_secret_noexcuses"
           DATABASE_URL: "mysql://root:@127.0.0.1:3306/noexcuses_test?serverVersion=8.0&charset=utf8mb4"
+          JWT_SECRET_KEY: "config/jwt/private.pem"
+          JWT_PUBLIC_KEY: "config/jwt/public.pem"
           JWT_PASSPHRASE: "noexcuses"
           JWT_TTL: "3600"
         run: vendor/bin/phpunit --testdox
