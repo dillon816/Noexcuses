@@ -48,6 +48,19 @@ class RecoveryController extends AbstractController
         ], Response::HTTP_CREATED);
     }
 
+    #[Route('/sommeil', name: 'api_recovery_sommeil_history', methods: ['GET'])]
+    public function getSommeilHistory(): JsonResponse
+    {
+        $entries = $this->recoveryService->getSommeilHistory($this->getUser(), 14);
+
+        return $this->json(array_map(fn ($s) => [
+            'id'            => $s->getId(),
+            'dateNuit'      => $s->getDateNuit()->format('Y-m-d'),
+            'heuresSommeil' => (float) $s->getHeuresSommeil(),
+            'qualite'       => $s->getQualiteSommeil(),
+        ], $entries));
+    }
+
     #[Route('/sommeil', name: 'api_recovery_sommeil', methods: ['POST'])]
     public function logSommeil(Request $request): JsonResponse
     {

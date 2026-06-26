@@ -167,4 +167,19 @@ class RecoveryService
     {
         return $this->recoveryRepo->findLatestForUser($user);
     }
+
+    /** Retourne les entrées de sommeil des N derniers jours, triées par date décroissante. */
+    public function getSommeilHistory(User $user, int $days = 14): array
+    {
+        $from = (new \DateTime())->modify("-{$days} days");
+
+        return $this->em->getRepository(Sommeil::class)->createQueryBuilder('s')
+            ->where('s.utilisateur = :user')
+            ->andWhere('s.dateNuit >= :from')
+            ->setParameter('user', $user)
+            ->setParameter('from', $from->format('Y-m-d'))
+            ->orderBy('s.dateNuit', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }
