@@ -55,8 +55,11 @@ jobs:
           openssl genrsa -out config/jwt/private.pem 2048
           openssl rsa -pubout -in config/jwt/private.pem -out config/jwt/public.pem
 
+      - name: Debug Symfony boot
+        run: php bin/console about --env=test
+
       - name: Run migrations on test DB
-        run: php bin/console doctrine:migrations:migrate --no-interaction --env=test
+        run: php bin/console doctrine:migrations:migrate --no-interaction --env=test --verbose
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit --testdox
