@@ -13,6 +13,9 @@ export default function Entrainement() {
   const [filtre, setFiltre] = useState('tout'); // 'tout' | 'semaine' | 'mois' | 'custom'
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo]   = useState('');
+  const [search, setSearch]   = useState('');
+  const [page, setPage]       = useState(1);
+  const PER_PAGE = 10;
 
   const load = () => getSeances(100).then((r) => setSeances(r.data));
 
@@ -93,14 +96,42 @@ export default function Entrainement() {
     }
   };
 
+  const TYPES_SEANCE = ['Push', 'Pull', 'Legs', 'Upper', 'Lower', 'Full Body', 'Cardio'];
+
   if (view === 'create') return (
     <div className="page-wrap narrow" style={{ margin: '0 auto' }}>
       <button onClick={() => setView('list')} style={styles.back}>← Retour</button>
       <h1 style={styles.title}>Nouvelle séance</h1>
       <div style={styles.card}>
         <form onSubmit={handleCreate}>
-          <label style={styles.label}>Nom de la séance</label>
-          <input style={styles.input} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Push day, Legs…" required />
+          <label style={styles.label}>Type de séance</label>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+            {TYPES_SEANCE.map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setForm({ ...form, nom: type })}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: '1px solid #E2E8F0',
+                  background: form.nom === type ? '#0F172A' : '#F8FAFC',
+                  color: form.nom === type ? '#fff' : '#64748B',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >{type}</button>
+            ))}
+          </div>
+          <label style={styles.label}>Nom personnalisé <span style={{ color: '#94A3B8', fontWeight: 400 }}>(optionnel)</span></label>
+          <input
+            style={styles.input}
+            value={form.nom}
+            onChange={(e) => setForm({ ...form, nom: e.target.value })}
+            placeholder="ou écris ton propre nom…"
+            required
+          />
           <label style={styles.label}>Date</label>
           <input style={styles.input} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <button style={{ ...styles.btn, marginTop: '16px', opacity: loading ? 0.7 : 1 }} type="submit" disabled={loading}>
@@ -229,7 +260,10 @@ export default function Entrainement() {
       return true;
     }
     return true; // 'tout'
-  });
+  }).filter((s) => !search || s.nom.toLowerCase().includes(search.toLowerCase()));
+
+  const totalPages = Math.ceil(seancesFiltrees.length / PER_PAGE);
+  const seancesPage = seancesFiltrees.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   return (
     <div className="page-wrap narrow" style={{ margin: '0 auto' }}>
@@ -249,7 +283,7 @@ export default function Entrainement() {
           ].map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setFiltre(key)}
+              onClick={() => { setFiltre(key); setPage(1); }}
               style={{ ...styles.filterBtn, ...(filtre === key ? styles.filterBtnActive : {}) }}
             >{label}</button>
           ))}
@@ -267,9 +301,19 @@ export default function Entrainement() {
           </div>
         )}
 
+        <div style={{ marginTop: '10px' }}>
+          <input
+            type="text"
+            placeholder="Rechercher une séance (Push day, Legs…)"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            style={{ ...styles.dateInput, width: '100%', boxSizing: 'border-box' }}
+          />
+        </div>
+
         <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '8px' }}>
           {seancesFiltrees.length} séance{seancesFiltrees.length !== 1 ? 's' : ''}
-          {filtre !== 'tout' ? ' sur cette période' : ' au total'}
+          {filtre !== 'tout' || search ? ' trouvée' + (seancesFiltrees.length !== 1 ? 's' : '') : ' au total'}
         </p>
       </div>
 
@@ -285,24 +329,44 @@ export default function Entrainement() {
           </button>
         </div>
       ) : (
-        seancesFiltrees.map((s) => (
-          <div key={s.id} className="seance-row" onClick={() => { getSeance(s.id).then((r) => { setActive(r.data); setView('detail'); }); }}>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nom}</p>
-              <p style={{ fontSize: '13px', color: '#64748B' }}>{s.dateSeance} · {s.nbSeries} série{s.nbSeries !== 1 ? 's' : ''}</p>
+        <>
+          {seancesPage.map((s) => (
+            <div key={s.id} className="seance-row" onClick={() => { getSeance(s.id).then((r) => { setActive(r.data); setView('detail'); }); }}>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nom}</p>
+                <p style={{ fontSize: '13px', color: '#64748B' }}>{s.dateSeance} · {s.nbSeries} série{s.nbSeries !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="seance-row-actions">
+                <span style={{ color: '#22C55E', fontWeight: 700, whiteSpace: 'nowrap' }}>{s.tonnageTotal} kg</span>
+                <span style={{ ...styles.badge, background: s.statut === 'terminee' ? '#F0FDF4' : '#FFF7ED', color: s.statut === 'terminee' ? '#16A34A' : '#EA580C', whiteSpace: 'nowrap' }}>
+                  {s.statut}
+                </span>
+                <button onClick={(e) => handleDupliquer(e, s.id)} style={styles.reuseBtn} title="Réutiliser cette séance">
+                  ↺
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}>✕</button>
+              </div>
             </div>
-            <div className="seance-row-actions">
-              <span style={{ color: '#22C55E', fontWeight: 700, whiteSpace: 'nowrap' }}>{s.tonnageTotal} kg</span>
-              <span style={{ ...styles.badge, background: s.statut === 'terminee' ? '#F0FDF4' : '#FFF7ED', color: s.statut === 'terminee' ? '#16A34A' : '#EA580C', whiteSpace: 'nowrap' }}>
-                {s.statut}
+          ))}
+
+          {totalPages > 1 && (
+            <div style={styles.pagination}>
+              <button
+                style={{ ...styles.pageBtn, opacity: page === 1 ? 0.4 : 1 }}
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+              >← Précédent</button>
+              <span style={{ fontSize: '13px', color: '#64748B' }}>
+                Page {page} / {totalPages}
               </span>
-              <button onClick={(e) => handleDupliquer(e, s.id)} style={styles.reuseBtn} title="Réutiliser cette séance">
-                ↺
-              </button>
-              <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}>✕</button>
+              <button
+                style={{ ...styles.pageBtn, opacity: page === totalPages ? 0.4 : 1 }}
+                disabled={page === totalPages}
+                onClick={() => setPage(p => p + 1)}
+              >Suivant →</button>
             </div>
-          </div>
-        ))
+          )}
+        </>
       )}
     </div>
   );
@@ -331,4 +395,6 @@ const styles = {
   filterBtnActive: { background: '#0F172A', color: '#fff', border: '1px solid #0F172A' },
   dateInput:     { padding: '5px 10px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '13px' },
   clearBtn:      { padding: '5px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#94A3B8', cursor: 'pointer' },
+  pagination:    { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '16px', padding: '12px 0' },
+  pageBtn:       { padding: '8px 16px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', color: '#0F172A' },
 };
