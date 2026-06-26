@@ -32,10 +32,12 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 
-#  Docker / environnement 
-.env
-.env.local
-.env.prod
+#  Docker / environnement
+/.env
+/.env.local
+/.env.prod
+backend/.env
+backend/.env.local
 docker-compose.override.yml
 docker-compose.prod.yml
 

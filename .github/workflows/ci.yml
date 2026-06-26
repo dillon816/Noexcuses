@@ -2,9 +2,9 @@ name: CI — NoExcuses
 
 on:
   push:
-    branches: [develop, "feature/**", "fix/**"]
+    branches: [develop]
   pull_request:
-    branches: [develop, main]
+    branches: [main]
 
 jobs:
   # Backend : Symfony / PHPUnit
@@ -49,18 +49,17 @@ jobs:
           COMPOSER_MEMORY_LIMIT: -1
         run: composer install --prefer-dist --no-progress --no-interaction --no-scripts
 
+      - name: Create .env for CI
+        run: echo "APP_ENV=test" > .env
+
       - name: Generate JWT keys
         run: |
           mkdir -p config/jwt
           openssl genrsa -out config/jwt/private.pem 2048
           openssl rsa -pubout -in config/jwt/private.pem -out config/jwt/public.pem
 
-      - name: Debug Symfony boot
-        run: php bin/console about --env=test 2>&1 || (echo "=== SYMFONY BOOT FAILED ===" && php -r "echo PHP_VERSION;" && exit 1)
-        continue-on-error: true
-
       - name: Run migrations on test DB
-        run: php bin/console doctrine:migrations:migrate --no-interaction --env=test 2>&1
+        run: php bin/console doctrine:migrations:migrate --no-interaction --env=test
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit --testdox
