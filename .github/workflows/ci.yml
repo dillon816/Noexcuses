@@ -7,10 +7,21 @@ on:
     branches: [develop, main]
 
 jobs:
-  # Backend : Symfony / PHPUnit 
+  # Backend : Symfony / PHPUnit
   backend:
     name: Backend (PHP 8.3 / Symfony 6.4)
     runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ""
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: noexcuses_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
 
     defaults:
       run:
@@ -38,7 +49,27 @@ jobs:
           COMPOSER_MEMORY_LIMIT: -1
         run: composer install --prefer-dist --no-progress --no-interaction --no-scripts
 
+      - name: Generate JWT keys
+        run: |
+          mkdir -p config/jwt
+          openssl genrsa -out config/jwt/private.pem 2048
+          openssl rsa -pubout -in config/jwt/private.pem -out config/jwt/public.pem
+
+      - name: Run migrations on test DB
+        env:
+          DATABASE_URL: "mysql://root:@127.0.0.1:3306/noexcuses_test?serverVersion=8.0&charset=utf8mb4"
+          APP_ENV: test
+          JWT_SECRET_KEY: "%kernel.project_dir%/config/jwt/private.pem"
+          JWT_PUBLIC_KEY: "%kernel.project_dir%/config/jwt/public.pem"
+          JWT_PASSPHRASE: "noexcuses"
+          JWT_TTL: "3600"
+        run: php bin/console doctrine:migrations:migrate --no-interaction --env=test
+
       - name: Run PHPUnit
+        env:
+          DATABASE_URL: "mysql://root:@127.0.0.1:3306/noexcuses_test?serverVersion=8.0&charset=utf8mb4"
+          JWT_PASSPHRASE: "noexcuses"
+          JWT_TTL: "3600"
         run: vendor/bin/phpunit --testdox
 
   # Frontend : React / Build
