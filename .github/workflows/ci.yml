@@ -56,10 +56,11 @@ jobs:
           openssl rsa -pubout -in config/jwt/private.pem -out config/jwt/public.pem
 
       - name: Debug Symfony boot
-        run: php bin/console about --env=test
+        run: php bin/console about --env=test 2>&1 || (echo "=== SYMFONY BOOT FAILED ===" && php -r "echo PHP_VERSION;" && exit 1)
+        continue-on-error: true
 
       - name: Run migrations on test DB
-        run: php bin/console doctrine:migrations:migrate --no-interaction --env=test --verbose
+        run: php bin/console doctrine:migrations:migrate --no-interaction --env=test 2>&1
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit --testdox
