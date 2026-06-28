@@ -1,0 +1,102 @@
+# docker-compose.prod.yml : version PRODUCTION de NoExcuses
+# Lancement : docker compose -f docker-compose.prod.yml up -d --build
+# Différences clés avec le dev : base non exposée, pas de phpMyAdmin,
+# APP_ENV=prod, code figé dans les images, mots de passe forts via .env
+
+services:
+
+  # MySQL 8 : la base de données (NON exposée vers l'extérieur en prod)
+  mysql:
+    image: mysql:8.0
+    container_name: noexcuses_mysql_prod
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    # Pas de "ports" ici : la base n'est accessible que par les autres conteneurs
+    volumes:
+      - mysql_data_prod:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - noexcuses_net
+
+  # Symfony (PHP-FPM) : le backend / API, en mode production
+  symfony:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile.prod   # image prod (code figé, sans dev)
+    container_name: noexcuses_symfony_prod
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      # Volume dédié pour les clés JWT de prod (générées au 1er démarrage avec la
+      # passphrase prod, puis persistées entre les redémarrages)
+      - jwt_keys_prod:/var/www/html/config/jwt
+    environment:
+      APP_ENV: prod                            # debug désactivé, cache optimisé
+      APP_DEBUG: 0
+      APP_SECRET: ${APP_SECRET}
+      DATABASE_URL: "mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}?serverVersion=8.0&charset=utf8mb4"
+      JWT_SECRET_KEY: "%kernel.project_dir%/config/jwt/private.pem"
+      JWT_PUBLIC_KEY: "%kernel.project_dir%/config/jwt/public.pem"
+      JWT_PASSPHRASE: ${JWT_PASSPHRASE}
+      JWT_TTL: 3600
+      CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN}
+      CALORIENINJAS_API_KEY: ${CALORIENINJAS_API_KEY}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+      # Variables lues par l'entrypoint pour attendre MySQL
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    networks:
+      - noexcuses_net
+
+  # Nginx : reverse proxy devant le backend
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: noexcuses_nginx_prod
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      # nginx a besoin du dossier public/ pour résoudre les chemins (lecture seule).
+      # L'exécution PHP se fait dans le conteneur symfony, qui a son code figé dans l'image.
+      - ./backend:/var/www/html:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - symfony
+    networks:
+      - noexcuses_net
+
+  # React : le frontend compilé, servi en statique par nginx
+  react:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000/api}
+    container_name: noexcuses_react_prod
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - nginx
+    networks:
+      - noexcuses_net
+
+volumes:
+  mysql_data_prod:
+    driver: local
+  jwt_keys_prod:
+    driver: local
+
+networks:
+  noexcuses_net:
+    driver: bridge

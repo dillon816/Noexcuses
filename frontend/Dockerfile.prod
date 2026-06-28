@@ -1,0 +1,18 @@
+# Dockerfile PROD du frontend React (build multi-étapes)
+
+# Étape 1 : on compile l'application React en fichiers statiques
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --legacy-peer-deps
+COPY . .
+# L'URL de l'API est figée au moment du build (variable React = compile-time)
+ARG REACT_APP_API_URL=http://localhost:8000/api
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+RUN npm run build
+
+# Étape 2 : on sert les fichiers statiques avec nginx (image légère finale)
+FROM nginx:1.27-alpine
+COPY --from=build /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80

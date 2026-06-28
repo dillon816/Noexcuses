@@ -1,0 +1,15 @@
+# Fichiers exclus du contexte de build Docker (prod)
+# Évite de copier le superflu et les secrets dans les images
+**/node_modules
+**/vendor
+**/.env
+**/.env.local
+**/.env.*.local
+backend/var
+backend/config/jwt/*.pem
+**/.git
+**/.github
+*.pdf
+*.py
+*.sh
+ci_screenshot*

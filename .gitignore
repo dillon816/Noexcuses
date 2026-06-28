@@ -39,7 +39,7 @@ frontend/yarn-error.log*
 backend/.env
 backend/.env.local
 docker-compose.override.yml
-docker-compose.prod.yml
+# docker-compose.prod.yml est versionné (aucun secret dedans, tout vient de .env.prod)
 
 #  OS 
 .DS_Store

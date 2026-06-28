@@ -1,0 +1,51 @@
+# Dockerfile PROD du backend Symfony
+# Différences avec le dev : pas de Xdebug, code copié dans l'image (pas monté),
+# dépendances optimisées sans les outils de dev.
+FROM php:8.3-fpm
+
+# Extensions PHP nécessaires (pas de Xdebug en prod : plus rapide)
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libicu-dev \
+    libzip-dev \
+    libpng-dev \
+    libonig-dev \
+    default-mysql-client \
+    && docker-php-ext-install \
+        intl \
+        pdo \
+        pdo_mysql \
+        zip \
+        mbstring \
+        opcache \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
+
+COPY docker/php/php.ini /usr/local/etc/php/conf.d/custom.ini
+
+WORKDIR /var/www/html
+
+# On copie le code de l'application DANS l'image (en prod, pas de volume monté)
+COPY backend/ /var/www/html/
+
+# Autorise Composer à garder ses plugins actifs même en root (sinon symfony/runtime
+# ne génère pas vendor/autoload_runtime.php, requis par bin/console)
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+# Symfony exige qu'un fichier .env existe au démarrage. La vraie configuration
+# vient des variables d'environnement (docker-compose.prod.yml), ce .env est minimal.
+RUN echo "APP_ENV=prod" > .env
+
+# Dépendances en mode production : sans les paquets de dev, autoloader optimisé.
+# --no-scripts évite le hook post-install Symfony (le cache est géré par l'entrypoint)
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
+# Script de démarrage prod (migrations + cache, sans composer install au runtime)
+COPY docker/php/entrypoint.prod.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 9000
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["php-fpm"]
