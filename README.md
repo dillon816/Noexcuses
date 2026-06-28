@@ -103,8 +103,8 @@ noexcuses/
 │   │   ├── Controller/       # 6 contrôleurs REST
 │   │   ├── Entity/           # 11 entités Doctrine
 │   │   ├── Repository/       # 7 repositories
-│   │   └── Service/          # 6 services métier
-│   ├── tests/Service/        # PHPUnit (4 suites)
+│   │   └── Service/          # 7 services métier
+│   ├── tests/                # PHPUnit (unitaires + intégration)
 │   └── config/               # JWT, Security, Doctrine, CORS
 ├── frontend/                 # React 18 SPA
 │   └── src/
