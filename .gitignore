@@ -36,7 +36,6 @@ frontend/yarn-error.log*
 /.env
 /.env.local
 /.env.prod
-backend/.env
 backend/.env.local
 docker-compose.override.yml
 # docker-compose.prod.yml est versionné (aucun secret dedans, tout vient de .env.prod)
@@ -72,5 +71,12 @@ frontend/coverage/
 *.log
 logs/
 
-#  Volumes Docker montés 
+#  Volumes Docker montés
 docker/mysql/data/
+
+#  Scripts et fichiers de travail perso (non livrés)
+/generate_pdfs.py
+/verify_pdfs.py
+/fix_tag.py
+/ci_screenshot*.png
+/Jalon*.pdf
