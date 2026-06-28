@@ -3,6 +3,10 @@
 # Différences clés avec le dev : base non exposée, pas de phpMyAdmin,
 # APP_ENV=prod, code figé dans les images, mots de passe forts via .env
 
+# Nom de projet distinct du dev : évite que les images prod (noexcuses-prod-*)
+# n'écrasent les images dev (noexcuses-*) qui partagent le même dossier
+name: noexcuses-prod
+
 services:
 
   # MySQL 8 : la base de données (NON exposée vers l'extérieur en prod)
