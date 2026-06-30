@@ -79,4 +79,6 @@ docker/mysql/data/
 /verify_pdfs.py
 /fix_tag.py
 /ci_screenshot*.png
+/ci_jalon6.png
+/conteneurs.png
 /Jalon*.pdf
