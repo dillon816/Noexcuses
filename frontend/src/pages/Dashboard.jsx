@@ -22,12 +22,15 @@ export default function Dashboard() {
 
   if (loading) return <div style={styles.loading}>Chargement…</div>;
 
-  const cal    = data?.caloriesConsommees  ?? 0;
+  const cal    = Math.round(data?.caloriesConsommees ?? 0); // arrondi comme la page Nutrition
   const target = data?.caloriesObjectif    ?? 2000;
+  const streak = data?.joursConsecutifs ?? 0;
+  // Cibles macros : on prend celles de l'objectif de l'utilisateur, sinon des valeurs par défaut
+  const objM   = data?.objectifsMacros ?? {};
   const macros = [
-    { label: 'Protéines', current: Math.round(data?.proteines ?? 0), target: 150, color: '#22C55E' },
-    { label: 'Glucides',  current: Math.round(data?.glucides  ?? 0), target: 250, color: '#3B82F6' },
-    { label: 'Lipides',   current: Math.round(data?.lipides   ?? 0), target: 70,  color: '#F59E0B' },
+    { label: 'Protéines', current: Math.round(data?.proteines ?? 0), target: objM.proteines ?? 150, color: '#22C55E' },
+    { label: 'Glucides',  current: Math.round(data?.glucides  ?? 0), target: objM.glucides  ?? 250, color: '#3B82F6' },
+    { label: 'Lipides',   current: Math.round(data?.lipides   ?? 0), target: objM.lipides   ?? 70,  color: '#F59E0B' },
     { label: 'Fibres',    current: Math.round(data?.fibres    ?? 0), target: 30,  color: '#8B5CF6' },
   ];
 
@@ -36,8 +39,15 @@ export default function Dashboard() {
   return (
     <div className="page-wrap wide" style={{ margin: '0 auto' }}>
       <header style={styles.header}>
-        <h1 style={styles.title}>Dashboard</h1>
-        <p style={styles.date}>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        <div>
+          <h1 style={styles.title}>Dashboard</h1>
+          <p style={styles.date}>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        </div>
+        {streak > 0 && (
+          <div style={styles.streak} title="Jours consécutifs avec un repas enregistré">
+            🔥 {streak} jour{streak > 1 ? 's' : ''} d'affilée
+          </div>
+        )}
       </header>
 
       <div className="grid-cards">
@@ -69,6 +79,9 @@ export default function Dashboard() {
               {recovery?.recommandation ?? 'Calculez votre score'}
             </div>
           </div>
+          {recovery?.score != null && recovery.score < 40 && (
+            <div style={styles.recoveryAlert}>⚠️ Récupération faible : repos conseillé aujourd'hui</div>
+          )}
           <Link to="/recovery" style={styles.linkBtn}>Voir le détail →</Link>
         </div>
 
@@ -103,7 +116,9 @@ export default function Dashboard() {
 const styles = {
   page:      { padding: '24px', maxWidth: '1200px', margin: '0 auto' }, // kept for ref
   loading:   { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#64748B' },
-  header:    { marginBottom: '24px' },
+  header:    { marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' },
+  streak:    { background: '#FFF7ED', color: '#EA580C', fontWeight: 600, fontSize: '14px', padding: '8px 16px', borderRadius: '20px', whiteSpace: 'nowrap' },
+  recoveryAlert: { background: '#FEF2F2', color: '#DC2626', fontSize: '13px', fontWeight: 500, padding: '8px 12px', borderRadius: '8px', textAlign: 'center', marginBottom: '8px' },
   title:     { fontSize: '30px', fontWeight: 700, color: '#0F172A' },
   date:      { color: '#64748B', fontSize: '14px', marginTop: '4px', textTransform: 'capitalize' },
   grid:      { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' },

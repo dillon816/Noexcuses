@@ -5,7 +5,10 @@ export default function CalorieCircle({ consumed, target }) {
   const norm    = radius - stroke / 2;
   const circ    = 2 * Math.PI * norm;
   const dash    = pct * circ;
-  const remaining = Math.max(target - consumed, 0);
+  const over      = consumed > target;             // objectif dépassé
+  const color     = over ? '#EA580C' : '#22C55E';  // rouge si dépassement, vert sinon
+  const remaining = Math.max(Math.round(target - consumed), 0); // arrondi cohérent partout
+  const overage   = Math.round(consumed - target);
 
   return (
     <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -14,7 +17,7 @@ export default function CalorieCircle({ consumed, target }) {
         <circle
           cx={radius} cy={radius} r={norm}
           fill="none"
-          stroke="#22C55E"
+          stroke={color}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={`${dash} ${circ}`}
@@ -26,8 +29,10 @@ export default function CalorieCircle({ consumed, target }) {
         textAlign: 'center',
         lineHeight: 1.2,
       }}>
-        <div style={{ fontSize: '22px', fontWeight: 700, color: '#0F172A' }}>{remaining}</div>
-        <div style={{ fontSize: '12px', color: '#64748B' }}>kcal restantes</div>
+        <div style={{ fontSize: '22px', fontWeight: 700, color: over ? '#EA580C' : '#0F172A' }}>
+          {over ? overage : remaining}
+        </div>
+        <div style={{ fontSize: '12px', color: '#64748B' }}>{over ? 'kcal dépassé' : 'kcal restantes'}</div>
       </div>
     </div>
   );
