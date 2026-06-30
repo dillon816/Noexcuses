@@ -50,11 +50,18 @@ services:
     restart: unless-stopped
     volumes:
       - ./backend:/var/www/html           # monte le code : modif locale = reflétée dans le conteneur
+      # vendor/ et var/ dans des volumes Docker natifs (pas le montage Windows) :
+      # gros gain de perf car ce sont les dossiers les plus lus par Symfony
+      - vendor_data:/var/www/html/vendor
+      - var_data:/var/www/html/var
     depends_on:
       mysql:
         condition: service_healthy        # ne démarre qu'une fois MySQL prêt
     environment:
       APP_ENV: dev
+      # Xdebug desactive par defaut (gros gain de perf). Le mettre a "coverage"
+      # uniquement quand on veut generer la couverture de tests.
+      XDEBUG_MODE: "off"
       APP_SECRET: noexcuses_secret_dev_key_32chars_ok
       # IMPORTANT : l'hôte de la BDD est "mysql" (nom du conteneur), pas 127.0.0.1
       DATABASE_URL: "mysql://noexcuses:noexcuses@mysql:3306/noexcuses?serverVersion=8.0&charset=utf8mb4"
@@ -106,9 +113,13 @@ services:
     networks:
       - noexcuses_net
 
-# Volume nommé : stockage persistant pour MySQL
+# Volumes nommés : données MySQL + dépendances/cache backend (perf)
 volumes:
   mysql_data:
+    driver: local
+  vendor_data:
+    driver: local
+  var_data:
     driver: local
 
 # Réseau privé : les conteneurs se parlent par leur nom (mysql, symfony...)

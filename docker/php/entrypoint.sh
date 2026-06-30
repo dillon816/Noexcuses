@@ -5,8 +5,9 @@ set -e
 
 cd /var/www/html
 
-# 1. Installer les dépendances PHP si le dossier vendor/ n'existe pas encore
-if [ ! -d "vendor" ]; then
+# 1. Installer les dépendances PHP si elles ne sont pas présentes
+#    (on teste autoload.php car vendor/ peut exister vide via un volume Docker)
+if [ ! -f "vendor/autoload.php" ]; then
   echo "[entrypoint] Installation des dependances Composer..."
   composer install --no-interaction --prefer-dist
 fi
