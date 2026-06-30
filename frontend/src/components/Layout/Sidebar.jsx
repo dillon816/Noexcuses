@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const NAV = [
@@ -25,6 +25,13 @@ const base = {
 
 export default function Sidebar() {
   const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  // Déconnexion : on vide la session puis on redirige explicitement vers le login
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <nav className="layout-sidebar" style={{
@@ -58,7 +65,7 @@ export default function Sidebar() {
       </div>
 
       <button
-        onClick={logout}
+        onClick={handleLogout}
         style={{
           ...base,
           margin: '8px',
