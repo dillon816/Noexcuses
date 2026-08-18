@@ -30,6 +30,18 @@ class EntrainementController extends AbstractController
         ], $seances));
     }
 
+    #[Route('/modeles', name: 'api_seances_modeles', methods: ['GET'])]
+    public function getModeles(): JsonResponse
+    {
+        $modeles = $this->entrainementService->getModeles($this->getUser());
+
+        return $this->json(array_map(fn ($s) => [
+            'id'       => $s->getId(),
+            'nom'      => $s->getNom(),
+            'nbSeries' => $s->getSeries()->count(),
+        ], $modeles));
+    }
+
     #[Route('', name: 'api_seances_create', methods: ['POST'])]
     public function createSeance(Request $request): JsonResponse
     {
@@ -44,12 +56,13 @@ class EntrainementController extends AbstractController
             $data['nom'],
             isset($data['date']) ? new \DateTime($data['date']) : new \DateTime(),
             $data['notes'] ?? null,
+            (bool) ($data['modele'] ?? false),
         );
 
         return $this->json(['message' => 'Séance créée.', 'id' => $seance->getId()], Response::HTTP_CREATED);
     }
 
-    #[Route('/{id}', name: 'api_seances_get', methods: ['GET'])]
+    #[Route('/{id}', name: 'api_seances_get', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function getSeance(int $id): JsonResponse
     {
         try {
@@ -79,7 +92,7 @@ class EntrainementController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/series', name: 'api_seances_add_serie', methods: ['POST'])]
+    #[Route('/{id}/series', name: 'api_seances_add_serie', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function addSerie(int $id, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true) ?? [];
@@ -106,7 +119,7 @@ class EntrainementController extends AbstractController
         }
     }
 
-    #[Route('/{id}/series/{serieId}', name: 'api_seances_update_serie', methods: ['PATCH'])]
+    #[Route('/{id}/series/{serieId}', name: 'api_seances_update_serie', methods: ['PATCH'], requirements: ['id' => '\d+', 'serieId' => '\d+'])]
     public function updateSerie(int $id, int $serieId, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true) ?? [];
@@ -136,7 +149,7 @@ class EntrainementController extends AbstractController
         }
     }
 
-    #[Route('/{id}/series/{serieId}', name: 'api_seances_delete_serie', methods: ['DELETE'])]
+    #[Route('/{id}/series/{serieId}', name: 'api_seances_delete_serie', methods: ['DELETE'], requirements: ['id' => '\d+', 'serieId' => '\d+'])]
     public function deleteSerie(int $id, int $serieId): JsonResponse
     {
         try {
@@ -149,7 +162,7 @@ class EntrainementController extends AbstractController
         }
     }
 
-    #[Route('/{id}/dupliquer', name: 'api_seances_dupliquer', methods: ['POST'])]
+    #[Route('/{id}/dupliquer', name: 'api_seances_dupliquer', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function dupliquer(int $id): JsonResponse
     {
         try {
@@ -165,7 +178,7 @@ class EntrainementController extends AbstractController
         }
     }
 
-    #[Route('/{id}/terminer', name: 'api_seances_terminer', methods: ['PUT'])]
+    #[Route('/{id}/terminer', name: 'api_seances_terminer', methods: ['PUT'], requirements: ['id' => '\d+'])]
     public function terminer(int $id): JsonResponse
     {
         try {
@@ -178,7 +191,39 @@ class EntrainementController extends AbstractController
         }
     }
 
-    #[Route('/{id}', name: 'api_seances_delete', methods: ['DELETE'])]
+    #[Route('/{id}/rouvrir', name: 'api_seances_rouvrir', methods: ['PUT'], requirements: ['id' => '\d+'])]
+    public function rouvrir(int $id): JsonResponse
+    {
+        try {
+            $seance = $this->entrainementService->getSeance($this->getUser(), $id);
+            $this->entrainementService->rouvrirSeance($seance);
+
+            return $this->json(['message' => 'Séance rouverte.', 'statut' => $seance->getStatut()]);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
+        }
+    }
+
+    #[Route('/{id}', name: 'api_seances_update', methods: ['PATCH'], requirements: ['id' => '\d+'])]
+    public function updateSeance(int $id, Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true) ?? [];
+
+        try {
+            $seance = $this->entrainementService->getSeance($this->getUser(), $id);
+            $this->entrainementService->updateSeance(
+                $seance,
+                isset($data['nom']) ? trim($data['nom']) : null,
+                isset($data['date']) ? new \DateTime($data['date']) : null,
+            );
+
+            return $this->json(['message' => 'Séance mise à jour.', 'nom' => $seance->getNom()]);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        }
+    }
+
+    #[Route('/{id}', name: 'api_seances_delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function deleteSeance(int $id): JsonResponse
     {
         try {

@@ -15,6 +15,8 @@ class Seance
     public const STATUT_EN_COURS  = 'en_cours';
     public const STATUT_TERMINEE  = 'terminee';
     public const STATUT_ARCHIVEE  = 'archivee';
+    // Seance-modele reutilisable : sert de gabarit, exclue de l'historique et des statistiques.
+    public const STATUT_MODELE    = 'modele';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -69,6 +71,11 @@ class Seance
     public function archiver(): void
     {
         $this->statut = self::STATUT_ARCHIVEE;
+    }
+
+    public function isModele(): bool
+    {
+        return $this->statut === self::STATUT_MODELE;
     }
 
     public function getId(): ?int { return $this->id; }

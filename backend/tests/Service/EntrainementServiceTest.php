@@ -61,4 +61,20 @@ class EntrainementServiceTest extends TestCase
 
         $this->assertSame(Seance::STATUT_ARCHIVEE, $seance->getStatut());
     }
+
+    public function testNouvelleSeanceEstEnCoursParDefaut(): void
+    {
+        $seance = new Seance();
+
+        $this->assertSame(Seance::STATUT_EN_COURS, $seance->getStatut());
+        $this->assertFalse($seance->isModele());
+    }
+
+    public function testSeanceModele(): void
+    {
+        $seance = new Seance();
+        $seance->setStatut(Seance::STATUT_MODELE);
+
+        $this->assertTrue($seance->isModele());
+    }
 }
