@@ -36,7 +36,7 @@ class ProgressionController extends AbstractController
     #[Route('/progression/entrainement', name: 'api_progression_entrainement', methods: ['GET'])]
     public function statsEntrainement(Request $request): JsonResponse
     {
-        $days = min((int) $request->query->get('days', 30), 365);
-        return $this->json($this->progressionService->getStatsEntrainement($this->getUser(), $days));
+        $weeks = min((int) $request->query->get('weeks', 8), 52);
+        return $this->json($this->progressionService->getStatsEntrainement($this->getUser(), $weeks));
     }
 }

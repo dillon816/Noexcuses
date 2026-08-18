@@ -1,8 +1,22 @@
 import { useEffect, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart } from 'recharts';
 import { getStatsPoids, getStatsCalories, getStatsEntrainement, logPoids } from '../api/progression';
 
 const TABS = ['Poids', 'Calories', 'Entraînement'];
+
+// Tooltip du graphe d'entraînement : volume de la semaine, tendance et nombre de séances.
+function TrainingTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  return (
+    <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 8, padding: '8px 10px', fontSize: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+      <p style={{ fontWeight: 600, marginBottom: 4 }}>Semaine du {label}</p>
+      <p>Volume : <strong>{p.tonnage} kg</strong></p>
+      <p style={{ color: '#2563EB' }}>Tendance : {p.tendance} kg</p>
+      <p style={{ color: '#64748B' }}>{p.nbSeances} séance{p.nbSeances !== 1 ? 's' : ''}</p>
+    </div>
+  );
+}
 
 export default function Progression() {
   const [tab, setTab]           = useState('Poids');
@@ -17,6 +31,13 @@ export default function Progression() {
       .then(([p, c, t]) => { setPoids(p.data); setCalories(c.data); setTraining(t.data); })
       .catch(console.error);
   }, []);
+
+  // Moyenne mobile sur 3 semaines pour tracer la tendance de charge.
+  const trainingTrend = training.map((d, i, arr) => {
+    const slice = arr.slice(Math.max(0, i - 2), i + 1);
+    const avg = slice.reduce((s, x) => s + x.tonnage, 0) / slice.length;
+    return { ...d, tendance: Math.round(avg) };
+  });
 
   const handleLogPoids = async (e) => {
     e.preventDefault();
@@ -93,15 +114,19 @@ export default function Progression() {
 
       {tab === 'Entraînement' && (
         <div style={styles.card}>
-          <h2 style={styles.cardTitle}>Charge d'entraînement (30 jours)</h2>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={training} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <h2 style={styles.cardTitle}>Charge d'entraînement par semaine (8 semaines)</h2>
+          <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '-6px', marginBottom: '12px' }}>
+            Volume total soulevé par semaine (séances terminées) et sa tendance sur 3 semaines.
+          </p>
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart data={trainingTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d) => d.slice(5)} />
+              <XAxis dataKey="semaine" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v) => [`${v} kg`, 'Tonnage']} />
-              <Bar dataKey="tonnageTotal" fill="#3B82F6" radius={[3, 3, 0, 0]} />
-            </BarChart>
+              <Tooltip content={<TrainingTooltip />} />
+              <Bar dataKey="tonnage" name="Volume" fill="#93C5FD" radius={[3, 3, 0, 0]} />
+              <Line type="monotone" dataKey="tendance" name="Tendance" stroke="#2563EB" strokeWidth={2} dot={{ r: 3 }} />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       )}
