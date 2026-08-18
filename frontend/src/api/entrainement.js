@@ -2,6 +2,7 @@ import api from './axios';
 
 export const getSeances     = (limit = 20)             => api.get(`/seances?limit=${limit}`);
 export const getModeles     = ()                       => api.get('/seances/modeles');
+export const getEnCours     = ()                       => api.get('/seances/en-cours');
 export const getSeance      = (id)                     => api.get(`/seances/${id}`);
 export const createSeance   = (data)                   => api.post('/seances', data);
 export const createModele   = (data)                   => api.post('/seances', { ...data, modele: true });

@@ -15,18 +15,35 @@ class SeanceRepository extends ServiceEntityRepository
     }
 
     /**
-     * Historique des seances reelles (exclut les seances-modeles reutilisables).
+     * Historique : seances reellement effectuees (statut "terminee" uniquement).
+     * Les modeles et les seances en cours en sont exclus, tout comme des statistiques.
      * @return Seance[]
      */
     public function findByUser(User $user, int $limit = 20): array
     {
         return $this->createQueryBuilder('s')
             ->where('s.utilisateur = :user')
-            ->andWhere('s.statut != :modele')
+            ->andWhere('s.statut = :terminee')
             ->setParameter('user', $user)
-            ->setParameter('modele', Seance::STATUT_MODELE)
+            ->setParameter('terminee', Seance::STATUT_TERMINEE)
             ->orderBy('s.dateSeance', 'DESC')
             ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Seances actuellement en cours (demarrees mais pas encore terminees).
+     * @return Seance[]
+     */
+    public function findEnCours(User $user): array
+    {
+        return $this->createQueryBuilder('s')
+            ->where('s.utilisateur = :user')
+            ->andWhere('s.statut = :enCours')
+            ->setParameter('user', $user)
+            ->setParameter('enCours', Seance::STATUT_EN_COURS)
+            ->orderBy('s.dateSeance', 'DESC')
             ->getQuery()
             ->getResult();
     }
@@ -47,6 +64,10 @@ class SeanceRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Charge d'entrainement des 7 derniers jours pour le Recovery Score.
+     * Seules les seances terminees comptent : ni les modeles ni les seances en cours.
+     */
     public function getTonnageLast7Days(User $user): float
     {
         $from = (new \DateTime())->modify('-7 days')->format('Y-m-d');
@@ -54,10 +75,10 @@ class SeanceRepository extends ServiceEntityRepository
             ->select('SUM(s.tonnageTotal) as total')
             ->where('s.utilisateur = :user')
             ->andWhere('s.dateSeance >= :from')
-            ->andWhere('s.statut NOT IN (:exclus)')
+            ->andWhere('s.statut = :terminee')
             ->setParameter('user', $user)
             ->setParameter('from', $from)
-            ->setParameter('exclus', [Seance::STATUT_ARCHIVEE, Seance::STATUT_MODELE])
+            ->setParameter('terminee', Seance::STATUT_TERMINEE)
             ->getQuery()
             ->getSingleScalarResult();
 
@@ -65,7 +86,7 @@ class SeanceRepository extends ServiceEntityRepository
     }
 
     /**
-     * Seances reelles sur une periode (exclut les modeles), pour les statistiques.
+     * Seances terminees sur une periode, pour les statistiques de progression.
      * @return Seance[]
      */
     public function findByUserBetweenDates(User $user, \DateTimeInterface $from, \DateTimeInterface $to): array
@@ -73,11 +94,11 @@ class SeanceRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('s')
             ->where('s.utilisateur = :user')
             ->andWhere('s.dateSeance BETWEEN :from AND :to')
-            ->andWhere('s.statut != :modele')
+            ->andWhere('s.statut = :terminee')
             ->setParameter('user', $user)
             ->setParameter('from', $from->format('Y-m-d'))
             ->setParameter('to', $to->format('Y-m-d'))
-            ->setParameter('modele', Seance::STATUT_MODELE)
+            ->setParameter('terminee', Seance::STATUT_TERMINEE)
             ->orderBy('s.dateSeance', 'ASC')
             ->getQuery()
             ->getResult();

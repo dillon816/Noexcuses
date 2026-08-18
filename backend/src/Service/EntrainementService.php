@@ -45,6 +45,12 @@ class EntrainementService
         return $this->seanceRepo->findModeles($user);
     }
 
+    /** Retourne les séances actuellement en cours (démarrées, pas encore terminées). @return Seance[] */
+    public function getEnCours(User $user): array
+    {
+        return $this->seanceRepo->findEnCours($user);
+    }
+
     /** Rouvre une séance terminée pour la modifier à nouveau (repasse en "en cours"). */
     public function rouvrirSeance(Seance $seance): Seance
     {

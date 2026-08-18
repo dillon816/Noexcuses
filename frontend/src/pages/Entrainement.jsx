@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  getSeances, getModeles, createSeance, createModele, getSeance,
+  getSeances, getModeles, getEnCours, createSeance, createModele, getSeance,
   addSerie, updateSerie, deleteSerie, dupliquerSeance,
   terminerSeance, rouvrirSeance, updateSeance, deleteSeance,
 } from '../api/entrainement';
@@ -15,16 +15,34 @@ const statutInfo = (s) => STATUT_INFO[s] || { label: s, bg: '#F1F5F9', color: '#
 
 const TYPES_SEANCE = ['Push', 'Pull', 'Legs', 'Upper', 'Lower', 'Full Body', 'Cardio'];
 
+// Regroupe les séries par exercice (id_exercice) en conservant l'ordre d'apparition.
+const groupByExercice = (series = []) => {
+  const groups = [];
+  const index = {};
+  for (const s of series) {
+    const key = s.exerciceId ?? s.exercice;
+    if (index[key] === undefined) {
+      index[key] = groups.length;
+      groups.push({ nom: s.exercice, series: [] });
+    }
+    groups[index[key]].series.push(s);
+  }
+  return groups;
+};
+
+const plural = (n, mot) => `${n} ${mot}${n !== 1 ? 's' : ''}`;
+
 export default function Entrainement() {
   const [tab, setTab]           = useState('modeles'); // 'modeles' | 'historique'
   const [modeles, setModeles]   = useState([]);
-  const [seances, setSeances]   = useState([]);
+  const [enCours, setEnCours]   = useState([]);
+  const [seances, setSeances]   = useState([]); // historique = terminées
   const [active, setActive]     = useState(null);
   const [view, setView]         = useState('list');
   const [createMode, setCreateMode] = useState('modele'); // 'modele' | 'seance'
   const [form, setForm]         = useState({ nom: '', date: new Date().toISOString().split('T')[0] });
   const [serieForm, setSerieForm]   = useState({ exerciceNom: '', repetitions: '', chargeKg: '', nbSeries: '3' });
-  const [editing, setEditing]       = useState(null); // serie en cours d'edition
+  const [editing, setEditing]       = useState(null); // série en cours d'édition
   const [renaming, setRenaming]     = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [loading, setLoading]   = useState(false);
@@ -37,11 +55,14 @@ export default function Entrainement() {
   const PER_PAGE = 10;
 
   const loadModeles = () => getModeles().then((r) => setModeles(r.data));
+  const loadEnCours = () => getEnCours().then((r) => setEnCours(r.data));
   const loadSeances = () => getSeances(100).then((r) => setSeances(r.data));
+  const reloadAll   = () => Promise.all([loadModeles(), loadEnCours(), loadSeances()]);
 
-  useEffect(() => { loadModeles(); loadSeances(); }, []);
+  // Chargement initial des trois listes, uniquement au montage.
+  useEffect(() => { reloadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const openDetail = (id) => getSeance(id).then((r) => { setActive(r.data); setRenaming(false); setView('detail'); });
+  const openDetail = (id) => getSeance(id).then((r) => { setActive(r.data); setRenaming(false); setEditing(null); setView('detail'); });
 
   const startCreate = (mode) => {
     setCreateMode(mode);
@@ -57,10 +78,15 @@ export default function Entrainement() {
         ? await createModele({ nom: form.nom })
         : await createSeance(form);
       await openDetail(r.data.id);
-      await Promise.all([loadModeles(), loadSeances()]);
+      await reloadAll();
     } catch {
       alert('Erreur lors de la création.');
     } finally { setLoading(false); }
+  };
+
+  const refreshActive = async () => {
+    const r = await getSeance(active.id);
+    setActive(r.data);
   };
 
   const handleAddSerie = async (e) => {
@@ -73,19 +99,31 @@ export default function Entrainement() {
         chargeKg: parseFloat(serieForm.chargeKg),
         nbSeries: parseInt(serieForm.nbSeries) || 1,
       });
-      const r = await getSeance(active.id);
-      setActive(r.data);
+      await refreshActive();
       setSerieForm({ exerciceNom: '', repetitions: '', chargeKg: '', nbSeries: '3' });
     } catch {
-      alert('Erreur lors de l\'ajout de la série.');
+      alert('Erreur lors de l\'ajout de l\'exercice.');
     }
+  };
+
+  // Ajoute une série de plus à un exercice déjà présent (reprend reps/charge de la dernière).
+  const handleAddSet = async (group) => {
+    const last = group.series[group.series.length - 1];
+    try {
+      await addSerie(active.id, {
+        exerciceNom: group.nom,
+        repetitions: last ? parseInt(last.repetitions) : 10,
+        chargeKg: last ? parseFloat(last.chargeKg) : 0,
+        nbSeries: 1,
+      });
+      await refreshActive();
+    } catch { alert('Erreur lors de l\'ajout de la série.'); }
   };
 
   const handleUpdateSerie = async (serieId) => {
     try {
       await updateSerie(active.id, serieId, { repetitions: parseInt(editing.repetitions), chargeKg: parseFloat(editing.chargeKg) });
-      const r = await getSeance(active.id);
-      setActive(r.data);
+      await refreshActive();
       setEditing(null);
     } catch { alert('Erreur lors de la modification.'); }
   };
@@ -93,23 +131,30 @@ export default function Entrainement() {
   const handleDeleteSerie = async (serieId) => {
     try {
       await deleteSerie(active.id, serieId);
-      const r = await getSeance(active.id);
-      setActive(r.data);
+      await refreshActive();
     } catch { alert('Erreur lors de la suppression.'); }
   };
 
-  const handleTerminer = async () => {
-    await terminerSeance(active.id);
-    const r = await getSeance(active.id);
-    setActive(r.data);
-    await loadSeances();
+  // Supprime un exercice entier (toutes ses séries).
+  const handleDeleteExercice = async (group) => {
+    try {
+      for (const s of group.series) {
+        await deleteSerie(active.id, s.id);
+      }
+      await refreshActive();
+    } catch { alert('Erreur lors de la suppression de l\'exercice.'); }
+  };
+
+  const handleTerminer = async (id = active?.id) => {
+    await terminerSeance(id);
+    if (active?.id === id) await refreshActive();
+    await reloadAll();
   };
 
   const handleRouvrir = async () => {
     await rouvrirSeance(active.id);
-    const r = await getSeance(active.id);
-    setActive(r.data);
-    await loadSeances();
+    await refreshActive();
+    await reloadAll();
   };
 
   const handleRename = async () => {
@@ -117,19 +162,18 @@ export default function Entrainement() {
     if (!nom) { setRenaming(false); return; }
     try {
       await updateSeance(active.id, { nom });
-      const r = await getSeance(active.id);
-      setActive(r.data);
+      await refreshActive();
       setRenaming(false);
-      await Promise.all([loadModeles(), loadSeances()]);
+      await reloadAll();
     } catch { alert('Erreur lors du renommage.'); }
   };
 
-  // Demarrer un modele (ou refaire une seance) : duplique en une seance reelle du jour.
+  // Démarrer un modèle (ou refaire une séance) : duplique en une séance réelle du jour.
   const handleDemarrer = async (e, id) => {
     if (e) e.stopPropagation();
     try {
       const r = await dupliquerSeance(id);
-      await Promise.all([loadModeles(), loadSeances()]);
+      await reloadAll();
       setTab('historique');
       await openDetail(r.data.id);
     } catch {
@@ -139,12 +183,13 @@ export default function Entrainement() {
 
   const handleDelete = async (e, id) => {
     if (e) e.stopPropagation();
+    if (!window.confirm('Supprimer définitivement ? Cette action est irréversible.')) return;
     await deleteSeance(id);
-    await Promise.all([loadModeles(), loadSeances()]);
+    await reloadAll();
     if (active?.id === id) { setActive(null); setView('list'); }
   };
 
-  // ---------- Vue creation ----------
+  // ---------- Vue création ----------
   if (view === 'create') {
     const isModele = createMode === 'modele';
     return (
@@ -153,7 +198,7 @@ export default function Entrainement() {
         <h1 style={styles.title}>{isModele ? 'Nouveau modèle' : 'Nouvelle séance'}</h1>
         <p style={{ color: '#64748B', fontSize: '14px', marginTop: '4px' }}>
           {isModele
-            ? 'Prépare un gabarit réutilisable (Push, Pull, Legs…) que tu pourras lancer en un clic.'
+            ? 'Prépare une routine réutilisable (Push, Pull, Legs…) que tu pourras démarrer en un clic.'
             : 'Séance ponctuelle que tu commences maintenant.'}
         </p>
         <div style={styles.card}>
@@ -197,17 +242,20 @@ export default function Entrainement() {
     );
   }
 
-  // ---------- Vue detail ----------
+  // ---------- Vue détail ----------
   if (view === 'detail' && active) {
     const isModele   = active.statut === 'modele';
     const isEnCours  = active.statut === 'en_cours';
     const isTerminee = active.statut === 'terminee';
     const editable   = isModele || isEnCours;
     const info       = statutInfo(active.statut);
+    const groups     = groupByExercice(active.series);
+    const nbExos     = active.nbExercices ?? groups.length;
+    const nbSeries   = active.series?.length || 0;
 
     return (
       <div className="page-wrap narrow" style={{ margin: '0 auto' }}>
-        <button onClick={() => setView('list')} style={styles.back}>← {isModele ? 'Mes modèles' : 'Historique'}</button>
+        <button onClick={() => setView('list')} style={styles.back}>← {isModele ? 'Mes modèles' : isEnCours ? 'Retour' : 'Historique'}</button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ minWidth: 0 }}>
             {renaming ? (
@@ -233,11 +281,8 @@ export default function Entrainement() {
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
               <span style={{ ...styles.badge, background: info.bg, color: info.color }}>{info.label}</span>
-              <span style={{ color: '#64748B', fontSize: '14px' }}>
-                {isModele
-                  ? `${active.series?.length || 0} exercice${(active.series?.length || 0) !== 1 ? 's' : ''}`
-                  : active.dateSeance}
-              </span>
+              {!isModele && <span style={{ color: '#64748B', fontSize: '14px' }}>{active.dateSeance}</span>}
+              <span style={{ color: '#64748B', fontSize: '14px' }}>{plural(nbExos, 'exercice')} · {plural(nbSeries, 'série')}</span>
             </div>
             <p style={{ color: '#64748B', fontSize: '13px', marginTop: '6px' }}>
               {isModele ? 'Volume cible' : 'Volume'} : <strong style={{ color: '#334155' }}>{active.tonnageTotal} kg</strong>
@@ -246,10 +291,10 @@ export default function Entrainement() {
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {isModele && (
-              <button style={{ ...styles.btn }} onClick={() => handleDemarrer(null, active.id)}>▶ Démarrer cette séance</button>
+              <button style={styles.btn} onClick={() => handleDemarrer(null, active.id)}>▶ Démarrer la séance</button>
             )}
             {isEnCours && (
-              <button style={{ ...styles.btn, background: '#0F172A' }} onClick={handleTerminer}>✓ Terminer</button>
+              <button style={{ ...styles.btn, background: '#0F172A' }} onClick={() => handleTerminer()}>✓ Terminer la séance</button>
             )}
             {isTerminee && (
               <button style={{ ...styles.btn, background: 'none', color: '#0F172A', border: '1px solid #CBD5E1' }} onClick={handleRouvrir}>✎ Modifier</button>
@@ -257,63 +302,75 @@ export default function Entrainement() {
           </div>
         </div>
 
-        {/* Séries */}
-        {active.series?.length > 0 ? (
+        {isEnCours && (
+          <div style={styles.enCoursHint}>
+            Séance en cours : ajuste tes exercices, séries, répétitions et charges, puis clique sur <strong>Terminer la séance</strong>.
+          </div>
+        )}
+
+        {/* Exercices groupés */}
+        {groups.length > 0 ? (
           <div style={styles.card}>
-            <h2 style={styles.cardTitle}>{isModele ? 'Exercices du modèle' : 'Séries'}</h2>
-            <div className="table-scroll">
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '12px', fontSize: '14px', minWidth: '420px' }}>
-                <thead>
-                  <tr style={{ color: '#64748B', textAlign: 'left' }}>
-                    <th style={styles.th}>Exercice</th>
-                    <th style={styles.th}>Reps</th>
-                    <th style={styles.th}>Charge</th>
-                    <th style={styles.th}>Volume</th>
-                    {editable && <th style={styles.th}></th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {active.series.map((s) => (
-                    <tr key={s.id} style={{ borderTop: '1px solid #F1F5F9' }}>
-                      <td style={styles.td}><strong>{s.exercice}</strong></td>
-                      {editable && editing?.id === s.id ? (
-                        <>
-                          <td style={styles.td}>
-                            <input type="number" min="1" value={editing.repetitions}
-                              onChange={(e) => setEditing({ ...editing, repetitions: e.target.value })}
-                              style={{ ...styles.inlineInput, width: '60px' }} />
-                          </td>
-                          <td style={styles.td}>
-                            <input type="number" min="0" step="0.5" value={editing.chargeKg}
-                              onChange={(e) => setEditing({ ...editing, chargeKg: e.target.value })}
-                              style={{ ...styles.inlineInput, width: '70px' }} />
-                          </td>
-                          <td style={{ ...styles.td, color: '#334155', fontWeight: 600 }}>
-                            {Math.round(parseInt(editing.repetitions || 0) * parseFloat(editing.chargeKg || 0))} kg
-                          </td>
-                          <td style={styles.td}>
-                            <button onClick={() => handleUpdateSerie(s.id)} style={styles.saveBtn}>✓</button>
-                            <button onClick={() => setEditing(null)} style={styles.cancelBtn}>✕</button>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td style={styles.td}>{s.repetitions}</td>
-                          <td style={styles.td}>{s.chargeKg} kg</td>
-                          <td style={{ ...styles.td, color: '#334155', fontWeight: 600 }}>{s.tonnage} kg</td>
-                          {editable && (
-                            <td style={styles.td}>
-                              <button onClick={() => setEditing({ id: s.id, repetitions: s.repetitions, chargeKg: s.chargeKg })} style={styles.iconBtn}>✏️</button>
-                              <button onClick={() => handleDeleteSerie(s.id)} style={{ ...styles.iconBtn, marginLeft: '4px' }}>🗑️</button>
-                            </td>
+            <h2 style={styles.cardTitle}>{isModele ? 'Exercices du modèle' : 'Exercices'}</h2>
+            {groups.map((g, gi) => (
+              <div key={gi} style={styles.exoBlock}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                  <p style={{ fontWeight: 700, color: '#0F172A' }}>{g.nom} <span style={{ color: '#94A3B8', fontWeight: 400, fontSize: '13px' }}>· {plural(g.series.length, 'série')}</span></p>
+                  {editable && (
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button onClick={() => handleAddSet(g)} style={styles.miniBtn} title="Ajouter une série">+ série</button>
+                      <button onClick={() => handleDeleteExercice(g)} style={{ ...styles.iconBtn }} title="Supprimer l'exercice">🗑️</button>
+                    </div>
+                  )}
+                </div>
+                <div className="table-scroll">
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '6px', fontSize: '14px', minWidth: '360px' }}>
+                    <tbody>
+                      {g.series.map((s, si) => (
+                        <tr key={s.id} style={{ borderTop: si === 0 ? 'none' : '1px solid #F1F5F9' }}>
+                          <td style={{ ...styles.td, color: '#94A3B8', width: '70px' }}>Série {si + 1}</td>
+                          {editable && editing?.id === s.id ? (
+                            <>
+                              <td style={styles.td}>
+                                <input type="number" min="1" value={editing.repetitions}
+                                  onChange={(e) => setEditing({ ...editing, repetitions: e.target.value })}
+                                  style={{ ...styles.inlineInput, width: '56px' }} /> reps
+                              </td>
+                              <td style={styles.td}>
+                                <input type="number" min="0" step="0.5" value={editing.chargeKg}
+                                  onChange={(e) => setEditing({ ...editing, chargeKg: e.target.value })}
+                                  style={{ ...styles.inlineInput, width: '64px' }} /> kg
+                              </td>
+                              <td style={{ ...styles.td, color: '#334155', fontWeight: 600 }}>
+                                {Math.round(parseInt(editing.repetitions || 0) * parseFloat(editing.chargeKg || 0))} kg
+                              </td>
+                              <td style={{ ...styles.td, textAlign: 'right' }}>
+                                <button onClick={() => handleUpdateSerie(s.id)} style={styles.saveBtn}>✓</button>
+                                <button onClick={() => setEditing(null)} style={styles.cancelBtn}>✕</button>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td style={styles.td}>{s.repetitions} reps</td>
+                              <td style={styles.td}>{s.chargeKg} kg</td>
+                              <td style={{ ...styles.td, color: '#334155', fontWeight: 600 }}>{s.tonnage} kg</td>
+                              <td style={{ ...styles.td, textAlign: 'right' }}>
+                                {editable && (
+                                  <>
+                                    <button onClick={() => setEditing({ id: s.id, repetitions: s.repetitions, chargeKg: s.chargeKg })} style={styles.iconBtn}>✏️</button>
+                                    <button onClick={() => handleDeleteSerie(s.id)} style={{ ...styles.iconBtn, marginLeft: '4px' }}>🗑️</button>
+                                  </>
+                                )}
+                              </td>
+                            </>
                           )}
-                        </>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div style={{ ...styles.card, textAlign: 'center', color: '#94A3B8' }}>
@@ -321,7 +378,7 @@ export default function Entrainement() {
           </div>
         )}
 
-        {/* Ajouter une série (modèle ou séance en cours) */}
+        {/* Ajouter un exercice (modèle ou séance en cours) */}
         {editable && (
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Ajouter un exercice</h2>
@@ -348,7 +405,6 @@ export default function Entrainement() {
   }
 
   // ---------- Vue liste ----------
-  // Filtrage client-side (historique)
   const seancesFiltrees = seances.filter((s) => {
     const d = s.dateSeance;
     const today = new Date().toISOString().split('T')[0];
@@ -379,8 +435,27 @@ export default function Entrainement() {
         <h1 style={styles.title}>Entraînements</h1>
         {tab === 'modeles'
           ? <button style={styles.btn} onClick={() => startCreate('modele')}>+ Nouveau modèle</button>
-          : <button style={{ ...styles.btn, background: 'none', color: '#22C55E', border: '1px solid #22C55E' }} onClick={() => startCreate('seance')}>+ Séance libre</button>}
+          : <button style={{ ...styles.btn, background: 'none', color: '#22C55E', border: '1px solid #22C55E' }} onClick={() => startCreate('seance')} title="Entraînement ponctuel, sans passer par un modèle">+ Séance ponctuelle</button>}
       </div>
+
+      {/* Séance(s) en cours : bien visible, au-dessus des onglets */}
+      {enCours.length > 0 && (
+        <div style={styles.enCoursWrap}>
+          <p style={styles.enCoursTitle}>● Séance en cours</p>
+          {enCours.map((s) => (
+            <div key={s.id} style={styles.enCoursCard} onClick={() => openDetail(s.id)}>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nom}</p>
+                <p style={{ fontSize: '13px', color: '#9A3412' }}>{s.dateSeance} · {plural(s.nbExercices, 'exercice')} · {plural(s.nbSeries, 'série')}</p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+                <button onClick={(e) => { e.stopPropagation(); openDetail(s.id); }} style={styles.reprendreBtn}>▶ Reprendre</button>
+                <button onClick={(e) => { e.stopPropagation(); handleTerminer(s.id); }} style={{ ...styles.btn, background: '#0F172A', padding: '8px 14px' }}>✓ Terminer</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Onglets */}
       <div style={styles.tabs}>
@@ -402,7 +477,7 @@ export default function Entrainement() {
           <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8' }}>
             <p style={{ fontSize: '32px', marginBottom: '8px' }}>🗂️</p>
             <p style={{ fontWeight: 500 }}>Aucun modèle pour l'instant</p>
-            <p style={{ fontSize: '13px', marginTop: '4px' }}>Crée un gabarit (Push, Pull, Legs…) pour le lancer en un clic.</p>
+            <p style={{ fontSize: '13px', marginTop: '4px' }}>Crée une routine (Push, Pull, Legs…) pour la démarrer en un clic.</p>
             <button style={{ ...styles.btn, marginTop: '12px' }} onClick={() => startCreate('modele')}>+ Nouveau modèle</button>
           </div>
         ) : (
@@ -411,11 +486,11 @@ export default function Entrainement() {
               <div key={m.id} style={styles.modeleCard} onClick={() => openDetail(m.id)}>
                 <div style={{ minWidth: 0 }}>
                   <p style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.nom}</p>
-                  <p style={{ fontSize: '13px', color: '#64748B' }}>{m.nbSeries} exercice{m.nbSeries !== 1 ? 's' : ''}</p>
+                  <p style={{ fontSize: '13px', color: '#64748B' }}>{plural(m.nbExercices, 'exercice')} · {plural(m.nbSeries, 'série')}</p>
                 </div>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <button onClick={(e) => handleDemarrer(e, m.id)} style={styles.startBtn} title="Démarrer cette séance">▶ Démarrer</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(e, m.id); }} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}>✕</button>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+                  <button onClick={(e) => handleDemarrer(e, m.id)} style={styles.startBtn} title="Démarrer la séance">▶ Démarrer la séance</button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(e, m.id); }} style={styles.iconBtn} title="Supprimer le modèle">🗑️</button>
                 </div>
               </div>
             ))}
@@ -423,7 +498,7 @@ export default function Entrainement() {
         )
       )}
 
-      {/* ---- Onglet Historique ---- */}
+      {/* ---- Onglet Historique (séances terminées) ---- */}
       {tab === 'historique' && (
         <>
           <div style={styles.filterBar}>
@@ -465,13 +540,17 @@ export default function Entrainement() {
             </div>
 
             <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '8px' }}>
-              {seancesFiltrees.length} séance{seancesFiltrees.length !== 1 ? 's' : ''}
-              {filtre !== 'tout' || search ? ' trouvée' + (seancesFiltrees.length !== 1 ? 's' : '') : ' au total'}
+              {plural(seancesFiltrees.length, 'séance')} terminée{seancesFiltrees.length !== 1 ? 's' : ''}
+              {filtre !== 'tout' || search ? ' trouvée' + (seancesFiltrees.length !== 1 ? 's' : '') : ''}
             </p>
           </div>
 
           {seances.length === 0 ? (
-            <p style={{ color: '#64748B' }}>Aucune séance. Démarre un modèle ou crée une séance libre.</p>
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8' }}>
+              <p style={{ fontSize: '32px', marginBottom: '8px' }}>🏁</p>
+              <p style={{ fontWeight: 500 }}>Aucune séance terminée</p>
+              <p style={{ fontSize: '13px', marginTop: '4px' }}>Démarre un modèle, fais ta séance, puis termine-la : elle apparaîtra ici.</p>
+            </div>
           ) : seancesFiltrees.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8' }}>
               <p style={{ fontSize: '32px', marginBottom: '8px' }}>📭</p>
@@ -489,13 +568,12 @@ export default function Entrainement() {
                   <div key={s.id} className="seance-row" onClick={() => openDetail(s.id)}>
                     <div style={{ minWidth: 0 }}>
                       <p style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nom}</p>
-                      <p style={{ fontSize: '13px', color: '#64748B' }}>{s.dateSeance} · {s.nbSeries} série{s.nbSeries !== 1 ? 's' : ''}</p>
+                      <p style={{ fontSize: '13px', color: '#64748B' }}>{s.dateSeance} · {plural(s.nbExercices, 'exercice')} · {plural(s.nbSeries, 'série')}</p>
                     </div>
                     <div className="seance-row-actions">
                       <span style={{ color: '#64748B', fontSize: '13px', whiteSpace: 'nowrap' }}>{s.tonnageTotal} kg</span>
                       <span style={{ ...styles.badge, background: info.bg, color: info.color, whiteSpace: 'nowrap' }}>{info.label}</span>
-                      <button onClick={(e) => handleDemarrer(e, s.id)} style={styles.reuseBtn} title="Refaire cette séance">↺</button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(e, s.id); }} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}>✕</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(e, s.id); }} style={styles.iconBtn} title="Supprimer la séance">🗑️</button>
                     </div>
                   </div>
                 );
@@ -537,18 +615,25 @@ const styles = {
   btn:      { padding: '10px 20px', background: '#22C55E', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' },
   badge:    { padding: '2px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600 },
   th:          { padding: '6px 8px', fontWeight: 600, fontSize: '13px' },
-  td:          { padding: '8px', verticalAlign: 'middle' },
+  td:          { padding: '7px 8px', verticalAlign: 'middle' },
   inlineInput: { padding: '4px 6px', border: '1px solid #22C55E', borderRadius: '6px', fontSize: '14px' },
   saveBtn:     { background: '#22C55E', color: '#fff', border: 'none', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontWeight: 700 },
   cancelBtn:   { background: '#E2E8F0', color: '#64748B', border: 'none', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', marginLeft: '4px' },
   iconBtn:     { background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: '2px 4px', borderRadius: '4px' },
+  miniBtn:     { padding: '3px 10px', background: '#F0FDF4', color: '#16A34A', border: '1px solid #BBF7D0', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' },
+  exoBlock:    { padding: '12px 0', borderTop: '1px solid #F1F5F9' },
   reuseBtn:      { padding: '4px 10px', background: '#EFF6FF', color: '#3B82F6', border: '1px solid #BFDBFE', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
-  startBtn:      { padding: '5px 12px', background: '#22C55E', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
+  startBtn:      { padding: '8px 14px', background: '#22C55E', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
+  reprendreBtn:  { padding: '8px 14px', background: '#fff', color: '#EA580C', border: '1px solid #FDBA74', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
   tabs:          { display: 'flex', gap: '6px', marginBottom: '16px', borderBottom: '1px solid #E2E8F0' },
   tabBtn:        { padding: '10px 18px', background: 'none', border: 'none', borderBottom: '2px solid transparent', color: '#64748B', fontSize: '15px', fontWeight: 600, cursor: 'pointer', marginBottom: '-1px' },
   tabBtnActive:  { color: '#0F172A', borderBottom: '2px solid #22C55E' },
   modeleGrid:    { display: 'grid', gap: '10px' },
   modeleCard:    { background: '#fff', borderRadius: '10px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
+  enCoursWrap:   { background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px' },
+  enCoursTitle:  { fontSize: '13px', fontWeight: 700, color: '#EA580C', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '10px' },
+  enCoursCard:   { background: '#fff', borderRadius: '10px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', cursor: 'pointer', boxShadow: '0 1px 3px rgba(234,88,12,0.12)', marginTop: '8px', flexWrap: 'wrap' },
+  enCoursHint:   { background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '10px', padding: '10px 14px', marginTop: '16px', fontSize: '13px', color: '#9A3412' },
   filterBar:     { background: '#fff', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
   filterBtn:     { padding: '6px 14px', borderRadius: '20px', border: '1px solid #E2E8F0', background: '#F8FAFC', color: '#64748B', fontSize: '13px', fontWeight: 500, cursor: 'pointer' },
   filterBtnActive: { background: '#0F172A', color: '#fff', border: '1px solid #0F172A' },

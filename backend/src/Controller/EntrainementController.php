@@ -20,14 +20,7 @@ class EntrainementController extends AbstractController
         $limit   = min((int) $request->query->get('limit', 20), 100);
         $seances = $this->entrainementService->getSeances($this->getUser(), $limit);
 
-        return $this->json(array_map(fn ($s) => [
-            'id'           => $s->getId(),
-            'nom'          => $s->getNom(),
-            'dateSeance'   => $s->getDateSeance()->format('Y-m-d'),
-            'statut'       => $s->getStatut(),
-            'tonnageTotal' => (float) $s->getTonnageTotal(),
-            'nbSeries'     => $s->getSeries()->count(),
-        ], $seances));
+        return $this->json(array_map(fn ($s) => $this->serializeSummary($s), $seances));
     }
 
     #[Route('/modeles', name: 'api_seances_modeles', methods: ['GET'])]
@@ -36,10 +29,33 @@ class EntrainementController extends AbstractController
         $modeles = $this->entrainementService->getModeles($this->getUser());
 
         return $this->json(array_map(fn ($s) => [
-            'id'       => $s->getId(),
-            'nom'      => $s->getNom(),
-            'nbSeries' => $s->getSeries()->count(),
+            'id'          => $s->getId(),
+            'nom'         => $s->getNom(),
+            'nbExercices' => $s->getNbExercices(),
+            'nbSeries'    => $s->getSeries()->count(),
         ], $modeles));
+    }
+
+    #[Route('/en-cours', name: 'api_seances_en_cours', methods: ['GET'])]
+    public function getEnCours(): JsonResponse
+    {
+        $seances = $this->entrainementService->getEnCours($this->getUser());
+
+        return $this->json(array_map(fn ($s) => $this->serializeSummary($s), $seances));
+    }
+
+    /** Vue résumée d'une séance réelle (historique ou en cours) pour les listes. */
+    private function serializeSummary(\App\Entity\Seance $s): array
+    {
+        return [
+            'id'           => $s->getId(),
+            'nom'          => $s->getNom(),
+            'dateSeance'   => $s->getDateSeance()->format('Y-m-d'),
+            'statut'       => $s->getStatut(),
+            'tonnageTotal' => (float) $s->getTonnageTotal(),
+            'nbExercices'  => $s->getNbExercices(),
+            'nbSeries'     => $s->getSeries()->count(),
+        ];
     }
 
     #[Route('', name: 'api_seances_create', methods: ['POST'])]
@@ -87,6 +103,7 @@ class EntrainementController extends AbstractController
             'dateSeance'   => $seance->getDateSeance()->format('Y-m-d'),
             'statut'       => $seance->getStatut(),
             'tonnageTotal' => (float) $seance->getTonnageTotal(),
+            'nbExercices'  => $seance->getNbExercices(),
             'notes'        => $seance->getNotes(),
             'series'       => $series,
         ]);

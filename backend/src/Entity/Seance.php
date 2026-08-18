@@ -78,6 +78,21 @@ class Seance
         return $this->statut === self::STATUT_MODELE;
     }
 
+    /**
+     * Nombre d'exercices distincts de la séance (par id_exercice), à ne pas confondre
+     * avec le nombre total de séries : 2 exercices en 3 séries = 2 exercices, 6 séries.
+     */
+    public function getNbExercices(): int
+    {
+        $ids = [];
+        foreach ($this->series as $serie) {
+            $exercice = $serie->getExercice();
+            $ids[$exercice->getId() ?? spl_object_id($exercice)] = true;
+        }
+
+        return count($ids);
+    }
+
     public function getId(): ?int { return $this->id; }
 
     public function getUtilisateur(): User { return $this->utilisateur; }
