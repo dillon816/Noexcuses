@@ -31,7 +31,7 @@ Projet fil rouge — CDA Bachelor 3 FullStack · IPSSI · Dillon Azag
 - Symfony CLI (optionnel)
 - Git
 
-> **Note :** Le déploiement Docker complet est prévu pour le Jalon 6. Les instructions ci-dessous permettent de lancer l'application en local sans Docker.
+> **Dev local :** les instructions ci-dessous lancent l'application sans Docker. Pour un déploiement conteneurisé complet (production), voir la section [Mise en production](#mise-en-production-docker).
 
 ### 1. Cloner le projet
 
@@ -144,6 +144,51 @@ noexcuses/
 | Secrets | `.env.local` dans `.gitignore`, jamais committés |
 | Headers sécurité | Prévus Jalon 6 (X-Frame-Options, CSP) |
 | CORS | NelmioCorsBundle configuré explicitement |
+
+---
+
+## Mise en production (Docker)
+
+L'application se déploie de bout en bout avec Docker Compose. Le fichier `docker-compose.prod.yml` construit les images (code figé, sans dépendances de dev), et l'entrypoint de production **génère les clés JWT chiffrées, attend MySQL, applique les migrations Doctrine et préchauffe le cache Symfony** — sans intervention manuelle.
+
+### 1. Configurer l'environnement de production
+
+```bash
+cp .env.prod.example .env.prod
+```
+
+Éditer `.env.prod` avec des valeurs **réelles et fortes** : mots de passe MySQL, `APP_SECRET`, `JWT_PASSPHRASE`, `CORS_ALLOW_ORIGIN` (ton domaine), clés API (CalorieNinjas, Mistral) et `REACT_APP_API_URL`.
+
+### 2. Lancer la stack
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+Au démarrage, tout est automatique (clés JWT, migrations, cache). Une fois les conteneurs prêts :
+
+- **API** (Nginx → PHP-FPM) : `http://localhost:8000/api`
+- **Frontend** (React compilé) : `http://localhost:3000`
+
+### 3. Mettre à jour une version déployée
+
+```bash
+git pull
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+Les migrations s'appliquent automatiquement au redémarrage ; une courte fenêtre de maintenance suffit.
+
+### Différences dev / prod
+
+| | Dev (`docker-compose.yml`) | Prod (`docker-compose.prod.yml`) |
+|--|--|--|
+| `APP_ENV` | `dev` (debug actif) | `prod` (debug off, cache optimisé) |
+| Base MySQL | exposée (3306) + phpMyAdmin | **non exposée** (réseau interne uniquement) |
+| Code | monté en volume (hot reload) | **figé** dans les images |
+| Secrets | `.env.local` | `.env.prod` (mots de passe forts) |
+
+> **Notes** — En production, les communications passent en **HTTPS** (terminaison TLS via reverse proxy / certificat sur le serveur cible). Stratégie de mise à jour : fenêtre de maintenance, ou déploiement **bleu/vert** pour du zéro-downtime ; la CI GitHub Actions constitue la première brique d'un déploiement continu.
 
 ---
 
