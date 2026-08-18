@@ -31,6 +31,23 @@ class AuthController extends AbstractController
         }
     }
 
+    #[Route('/auth/google', name: 'api_auth_google', methods: ['POST'])]
+    public function googleLogin(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true) ?? [];
+
+        if (empty($data['credential'])) {
+            return $this->json(['error' => 'Token Google manquant.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $token = $this->authService->loginWithGoogle($data['credential']);
+            return $this->json(['token' => $token]);
+        } catch (\InvalidArgumentException) {
+            return $this->json(['error' => 'Connexion Google refusée.'], Response::HTTP_UNAUTHORIZED);
+        }
+    }
+
     #[Route('/register', name: 'api_register', methods: ['POST'])]
     public function register(Request $request): JsonResponse
     {

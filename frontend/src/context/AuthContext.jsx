@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react';
-import { login as apiLogin } from '../api/auth';
+import { login as apiLogin, googleLogin as apiGoogleLogin } from '../api/auth';
 
 const AuthContext = createContext(null);
 
@@ -20,6 +20,18 @@ export function AuthProvider({ children }) {
     return userData;
   }, []);
 
+  // Connexion via Google : on envoie le token Google au backend qui nous renvoie notre propre JWT
+  const loginWithGoogle = useCallback(async (credential) => {
+    const res = await apiGoogleLogin(credential);
+    const token = res.data.token;
+    localStorage.setItem('jwt_token', token);
+    const decoded = parseJwt(token);
+    const userData = { email: decoded?.username, id: decoded?.id };
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+    return userData;
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem('jwt_token');
     localStorage.removeItem('user');
@@ -27,7 +39,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, loginWithGoogle, logout, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

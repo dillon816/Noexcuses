@@ -75,6 +75,8 @@ services:
       # Clés API lues depuis le fichier .env à la racine (non versionné)
       CALORIENINJAS_API_KEY: ${CALORIENINJAS_API_KEY:-changeme}
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-changeme}
+      # Client ID Google (connexion OAuth) : lu depuis le .env a la racine
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-changeme}
     networks:
       - noexcuses_net
 
@@ -107,6 +109,8 @@ services:
       - /app/node_modules                 # garde les node_modules du conteneur (pas ceux de l'hôte)
     environment:
       - REACT_APP_API_URL=http://localhost:8000/api
+      # Meme Client ID Google cote frontend (public) pour afficher le bouton de connexion
+      - REACT_APP_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-changeme}
       - CHOKIDAR_USEPOLLING=true          # nécessaire pour le hot-reload dans Docker
     depends_on:
       - nginx

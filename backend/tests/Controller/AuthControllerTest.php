@@ -117,4 +117,11 @@ class AuthControllerTest extends WebTestCase
         $client->request('GET', '/api/profil');
         $this->assertResponseStatusCodeSame(401);
     }
+
+    public function testGoogleLoginWithoutCredentialReturns400(): void
+    {
+        $client = static::createClient();
+        $client->request('POST', '/api/auth/google', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode([]));
+        $this->assertResponseStatusCodeSame(400);
+    }
 }
