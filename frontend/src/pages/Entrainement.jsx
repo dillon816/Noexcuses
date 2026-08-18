@@ -4,6 +4,8 @@ import {
   addSerie, updateSerie, deleteSerie, dupliquerSeance,
   terminerSeance, rouvrirSeance, updateSeance, deleteSeance,
 } from '../api/entrainement';
+import { useToast, useConfirm } from '../components/common/UIFeedback';
+import EmptyState from '../components/common/EmptyState';
 
 const STATUT_INFO = {
   en_cours: { label: 'En cours', bg: '#FFF7ED', color: '#EA580C' },
@@ -33,6 +35,9 @@ const groupByExercice = (series = []) => {
 const plural = (n, mot) => `${n} ${mot}${n !== 1 ? 's' : ''}`;
 
 export default function Entrainement() {
+  const toast   = useToast();
+  const confirm = useConfirm();
+  const [busy, setBusy] = useState(null); // id de la séance en cours d'action (Démarrer/Terminer)
   const [tab, setTab]           = useState('modeles'); // 'modeles' | 'historique'
   const [modeles, setModeles]   = useState([]);
   const [enCours, setEnCours]   = useState([]);
@@ -80,7 +85,7 @@ export default function Entrainement() {
       await openDetail(r.data.id);
       await reloadAll();
     } catch {
-      alert('Erreur lors de la création.');
+      toast('Erreur lors de la création.', 'error');
     } finally { setLoading(false); }
   };
 
@@ -102,7 +107,7 @@ export default function Entrainement() {
       await refreshActive();
       setSerieForm({ exerciceNom: '', repetitions: '', chargeKg: '', nbSeries: '3' });
     } catch {
-      alert('Erreur lors de l\'ajout de l\'exercice.');
+      toast('Erreur lors de l\'ajout de l\'exercice.', 'error');
     }
   };
 
@@ -117,7 +122,7 @@ export default function Entrainement() {
         nbSeries: 1,
       });
       await refreshActive();
-    } catch { alert('Erreur lors de l\'ajout de la série.'); }
+    } catch { toast('Erreur lors de l\'ajout de la série.', 'error'); }
   };
 
   const handleUpdateSerie = async (serieId) => {
@@ -125,36 +130,50 @@ export default function Entrainement() {
       await updateSerie(active.id, serieId, { repetitions: parseInt(editing.repetitions), chargeKg: parseFloat(editing.chargeKg) });
       await refreshActive();
       setEditing(null);
-    } catch { alert('Erreur lors de la modification.'); }
+    } catch { toast('Erreur lors de la modification.', 'error'); }
   };
 
   const handleDeleteSerie = async (serieId) => {
     try {
       await deleteSerie(active.id, serieId);
       await refreshActive();
-    } catch { alert('Erreur lors de la suppression.'); }
+    } catch { toast('Erreur lors de la suppression.', 'error'); }
   };
 
   // Supprime un exercice entier (toutes ses séries).
   const handleDeleteExercice = async (group) => {
+    const ok = await confirm({
+      title: 'Supprimer l\'exercice ?',
+      message: `Toutes les séries de "${group.nom}" seront supprimées.`,
+      confirmLabel: 'Supprimer', danger: true,
+    });
+    if (!ok) return;
     try {
       for (const s of group.series) {
         await deleteSerie(active.id, s.id);
       }
       await refreshActive();
-    } catch { alert('Erreur lors de la suppression de l\'exercice.'); }
+    } catch { toast('Erreur lors de la suppression de l\'exercice.', 'error'); }
   };
 
   const handleTerminer = async (id = active?.id) => {
-    await terminerSeance(id);
-    if (active?.id === id) await refreshActive();
-    await reloadAll();
+    setBusy(id);
+    try {
+      await terminerSeance(id);
+      if (active?.id === id) await refreshActive();
+      await reloadAll();
+      toast('Séance terminée, bien joué !', 'success');
+    } catch { toast('Erreur lors de la validation de la séance.', 'error'); }
+    finally { setBusy(null); }
   };
 
   const handleRouvrir = async () => {
-    await rouvrirSeance(active.id);
-    await refreshActive();
-    await reloadAll();
+    try {
+      await rouvrirSeance(active.id);
+      await refreshActive();
+      await reloadAll();
+      toast('Séance rouverte : tu peux la modifier.', 'info');
+    } catch { toast('Erreur lors de la réouverture.', 'error'); }
   };
 
   const handleRename = async () => {
@@ -165,28 +184,39 @@ export default function Entrainement() {
       await refreshActive();
       setRenaming(false);
       await reloadAll();
-    } catch { alert('Erreur lors du renommage.'); }
+      toast('Renommé.', 'success');
+    } catch { toast('Erreur lors du renommage.', 'error'); }
   };
 
   // Démarrer un modèle (ou refaire une séance) : duplique en une séance réelle du jour.
   const handleDemarrer = async (e, id) => {
     if (e) e.stopPropagation();
+    setBusy(id);
     try {
       const r = await dupliquerSeance(id);
       await reloadAll();
       setTab('historique');
       await openDetail(r.data.id);
+      toast('Séance démarrée : ajuste-la puis termine-la.', 'success');
     } catch {
-      alert('Erreur lors du démarrage de la séance.');
-    }
+      toast('Erreur lors du démarrage de la séance.', 'error');
+    } finally { setBusy(null); }
   };
 
   const handleDelete = async (e, id) => {
     if (e) e.stopPropagation();
-    if (!window.confirm('Supprimer définitivement ? Cette action est irréversible.')) return;
-    await deleteSeance(id);
-    await reloadAll();
-    if (active?.id === id) { setActive(null); setView('list'); }
+    const ok = await confirm({
+      title: 'Supprimer définitivement ?',
+      message: 'Cette action est irréversible.',
+      confirmLabel: 'Supprimer', danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteSeance(id);
+      await reloadAll();
+      if (active?.id === id) { setActive(null); setView('list'); }
+      toast('Supprimé.', 'success');
+    } catch { toast('Erreur lors de la suppression.', 'error'); }
   };
 
   // ---------- Vue création ----------
@@ -275,7 +305,7 @@ export default function Entrainement() {
                 <button
                   onClick={() => { setRenameValue(active.nom); setRenaming(true); }}
                   style={{ ...styles.iconBtn, fontSize: '16px', marginLeft: '8px', verticalAlign: 'middle' }}
-                  title="Renommer"
+                  title="Renommer" aria-label="Renommer"
                 >✏️</button>
               </h1>
             )}
@@ -291,10 +321,14 @@ export default function Entrainement() {
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {isModele && (
-              <button style={styles.btn} onClick={() => handleDemarrer(null, active.id)}>▶ Démarrer la séance</button>
+              <button style={styles.btn} onClick={() => handleDemarrer(null, active.id)} disabled={busy === active.id}>
+                {busy === active.id ? '…' : '▶ Démarrer la séance'}
+              </button>
             )}
             {isEnCours && (
-              <button style={{ ...styles.btn, background: '#0F172A' }} onClick={() => handleTerminer()}>✓ Terminer la séance</button>
+              <button style={{ ...styles.btn, background: '#0F172A' }} onClick={() => handleTerminer()} disabled={busy === active.id}>
+                {busy === active.id ? '…' : '✓ Terminer la séance'}
+              </button>
             )}
             {isTerminee && (
               <button style={{ ...styles.btn, background: 'none', color: '#0F172A', border: '1px solid #CBD5E1' }} onClick={handleRouvrir}>✎ Modifier</button>
@@ -318,8 +352,8 @@ export default function Entrainement() {
                   <p style={{ fontWeight: 700, color: '#0F172A' }}>{g.nom} <span style={{ color: '#94A3B8', fontWeight: 400, fontSize: '13px' }}>· {plural(g.series.length, 'série')}</span></p>
                   {editable && (
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button onClick={() => handleAddSet(g)} style={styles.miniBtn} title="Ajouter une série">+ série</button>
-                      <button onClick={() => handleDeleteExercice(g)} style={{ ...styles.iconBtn }} title="Supprimer l'exercice">🗑️</button>
+                      <button onClick={() => handleAddSet(g)} style={styles.miniBtn} title="Ajouter une série" aria-label={`Ajouter une série à ${g.nom}`}>+ série</button>
+                      <button onClick={() => handleDeleteExercice(g)} style={{ ...styles.iconBtn }} title="Supprimer l'exercice" aria-label={`Supprimer l'exercice ${g.nom}`}>🗑️</button>
                     </div>
                   )}
                 </div>
@@ -357,8 +391,8 @@ export default function Entrainement() {
                               <td style={{ ...styles.td, textAlign: 'right' }}>
                                 {editable && (
                                   <>
-                                    <button onClick={() => setEditing({ id: s.id, repetitions: s.repetitions, chargeKg: s.chargeKg })} style={styles.iconBtn}>✏️</button>
-                                    <button onClick={() => handleDeleteSerie(s.id)} style={{ ...styles.iconBtn, marginLeft: '4px' }}>🗑️</button>
+                                    <button onClick={() => setEditing({ id: s.id, repetitions: s.repetitions, chargeKg: s.chargeKg })} style={styles.iconBtn} title="Modifier la série" aria-label="Modifier la série">✏️</button>
+                                    <button onClick={() => handleDeleteSerie(s.id)} style={{ ...styles.iconBtn, marginLeft: '4px' }} title="Supprimer la série" aria-label="Supprimer la série">🗑️</button>
                                   </>
                                 )}
                               </td>
@@ -443,14 +477,16 @@ export default function Entrainement() {
         <div style={styles.enCoursWrap}>
           <p style={styles.enCoursTitle}>● Séance en cours</p>
           {enCours.map((s) => (
-            <div key={s.id} style={styles.enCoursCard} onClick={() => openDetail(s.id)}>
+            <div key={s.id} className="lift-card" style={styles.enCoursCard} onClick={() => openDetail(s.id)}>
               <div style={{ minWidth: 0 }}>
                 <p style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nom}</p>
                 <p style={{ fontSize: '13px', color: '#9A3412' }}>{s.dateSeance} · {plural(s.nbExercices, 'exercice')} · {plural(s.nbSeries, 'série')}</p>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
                 <button onClick={(e) => { e.stopPropagation(); openDetail(s.id); }} style={styles.reprendreBtn}>▶ Reprendre</button>
-                <button onClick={(e) => { e.stopPropagation(); handleTerminer(s.id); }} style={{ ...styles.btn, background: '#0F172A', padding: '8px 14px' }}>✓ Terminer</button>
+                <button onClick={(e) => { e.stopPropagation(); handleTerminer(s.id); }} style={{ ...styles.btn, background: '#0F172A', padding: '8px 14px' }} disabled={busy === s.id}>
+                  {busy === s.id ? '…' : '✓ Terminer'}
+                </button>
               </div>
             </div>
           ))}
@@ -474,23 +510,25 @@ export default function Entrainement() {
       {/* ---- Onglet Modèles ---- */}
       {tab === 'modeles' && (
         modeles.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8' }}>
-            <p style={{ fontSize: '32px', marginBottom: '8px' }}>🗂️</p>
-            <p style={{ fontWeight: 500 }}>Aucun modèle pour l'instant</p>
-            <p style={{ fontSize: '13px', marginTop: '4px' }}>Crée une routine (Push, Pull, Legs…) pour la démarrer en un clic.</p>
-            <button style={{ ...styles.btn, marginTop: '12px' }} onClick={() => startCreate('modele')}>+ Nouveau modèle</button>
-          </div>
+          <EmptyState
+            icon="🗂️"
+            title="Aucun modèle pour l'instant"
+            subtitle="Crée une routine (Push, Pull, Legs…) pour la démarrer en un clic."
+            action={<button style={styles.btn} onClick={() => startCreate('modele')}>+ Nouveau modèle</button>}
+          />
         ) : (
           <div style={styles.modeleGrid}>
             {modeles.map((m) => (
-              <div key={m.id} style={styles.modeleCard} onClick={() => openDetail(m.id)}>
+              <div key={m.id} className="lift-card" style={styles.modeleCard} onClick={() => openDetail(m.id)}>
                 <div style={{ minWidth: 0 }}>
                   <p style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.nom}</p>
                   <p style={{ fontSize: '13px', color: '#64748B' }}>{plural(m.nbExercices, 'exercice')} · {plural(m.nbSeries, 'série')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
-                  <button onClick={(e) => handleDemarrer(e, m.id)} style={styles.startBtn} title="Démarrer la séance">▶ Démarrer la séance</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(e, m.id); }} style={styles.iconBtn} title="Supprimer le modèle">🗑️</button>
+                  <button onClick={(e) => handleDemarrer(e, m.id)} style={styles.startBtn} title="Démarrer la séance" disabled={busy === m.id}>
+                    {busy === m.id ? '…' : '▶ Démarrer la séance'}
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(e, m.id); }} style={styles.iconBtn} title="Supprimer le modèle" aria-label={`Supprimer le modèle ${m.nom}`}>🗑️</button>
                 </div>
               </div>
             ))}
@@ -546,20 +584,20 @@ export default function Entrainement() {
           </div>
 
           {seances.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8' }}>
-              <p style={{ fontSize: '32px', marginBottom: '8px' }}>🏁</p>
-              <p style={{ fontWeight: 500 }}>Aucune séance terminée</p>
-              <p style={{ fontSize: '13px', marginTop: '4px' }}>Démarre un modèle, fais ta séance, puis termine-la : elle apparaîtra ici.</p>
-            </div>
+            <EmptyState
+              icon="🏁"
+              title="Aucune séance terminée"
+              subtitle="Démarre un modèle, fais ta séance, puis termine-la : elle apparaîtra ici."
+            />
           ) : seancesFiltrees.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8' }}>
-              <p style={{ fontSize: '32px', marginBottom: '8px' }}>📭</p>
-              <p style={{ fontWeight: 500 }}>Aucune séance sur cette période</p>
-              <button style={{ ...styles.btn, marginTop: '12px', background: 'none', color: '#22C55E', border: '1px solid #22C55E' }}
+            <EmptyState
+              icon="📭"
+              title="Aucune séance sur cette période"
+              action={<button style={{ ...styles.btn, background: 'none', color: '#22C55E', border: '1px solid #22C55E' }}
                 onClick={() => { setFiltre('tout'); setDateFrom(''); setDateTo(''); }}>
                 Voir toutes les séances
-              </button>
-            </div>
+              </button>}
+            />
           ) : (
             <>
               {seancesPage.map((s) => {
@@ -573,7 +611,7 @@ export default function Entrainement() {
                     <div className="seance-row-actions">
                       <span style={{ color: '#64748B', fontSize: '13px', whiteSpace: 'nowrap' }}>{s.tonnageTotal} kg</span>
                       <span style={{ ...styles.badge, background: info.bg, color: info.color, whiteSpace: 'nowrap' }}>{info.label}</span>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(e, s.id); }} style={styles.iconBtn} title="Supprimer la séance">🗑️</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(e, s.id); }} style={styles.iconBtn} title="Supprimer la séance" aria-label={`Supprimer la séance ${s.nom}`}>🗑️</button>
                     </div>
                   </div>
                 );
