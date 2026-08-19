@@ -188,7 +188,7 @@ Les migrations s'appliquent automatiquement au redémarrage ; une courte fenêtr
 | Code | monté en volume (hot reload) | **figé** dans les images |
 | Secrets | `.env.local` | `.env.prod` (mots de passe forts) |
 
-> **Notes** — En production, les communications passent en **HTTPS** (terminaison TLS via reverse proxy / certificat sur le serveur cible). Stratégie de mise à jour : fenêtre de maintenance, ou déploiement **bleu/vert** pour du zéro-downtime ; la CI GitHub Actions constitue la première brique d'un déploiement continu.
+> **Note** — En production, servir l'application derrière un reverse proxy avec **HTTPS** (certificat TLS). La stratégie de déploiement détaillée figure dans le dossier de projet (Partie XII).
 
 ---
 
