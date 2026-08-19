@@ -1,0 +1,10 @@
+framework:
+    rate_limiter:
+        # Anti brute force sur la connexion : 5 tentatives par tranche de 15 minutes,
+        # identifiees par IP + email. Le compteur est remis a zero apres une connexion reussie.
+        login:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'
+            # Pas de verrou distribue necessaire ici (evite la dependance symfony/lock)
+            lock_factory: null

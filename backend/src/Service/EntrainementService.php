@@ -16,16 +16,62 @@ class EntrainementService
         private readonly SeanceRepository       $seanceRepo,
     ) {}
 
-    /** Initialise une nouvelle séance en statut "en cours" pour l'utilisateur. */
-    public function createSeance(User $user, string $nom, \DateTimeInterface $date, ?string $notes = null): Seance
+    /**
+     * Initialise une nouvelle séance pour l'utilisateur.
+     * Si $modele vaut true, la séance devient un gabarit réutilisable (statut "modele").
+     * La date reste obligatoire côté base : pour un modèle on stocke la date du jour
+     * comme date technique, jamais affichée comme date d'entraînement.
+     */
+    public function createSeance(User $user, string $nom, \DateTimeInterface $date, ?string $notes = null, bool $modele = false): Seance
     {
         $seance = new Seance();
         $seance->setUtilisateur($user);
         $seance->setNom($nom);
         $seance->setDateSeance($date);
         $seance->setNotes($notes);
+        if ($modele) {
+            $seance->setStatut(Seance::STATUT_MODELE);
+        }
 
         $this->em->persist($seance);
+        $this->em->flush();
+
+        return $seance;
+    }
+
+    /** Retourne les séances-modèles (gabarits réutilisables) de l'utilisateur. @return Seance[] */
+    public function getModeles(User $user): array
+    {
+        return $this->seanceRepo->findModeles($user);
+    }
+
+    /** Retourne les séances actuellement en cours (démarrées, pas encore terminées). @return Seance[] */
+    public function getEnCours(User $user): array
+    {
+        return $this->seanceRepo->findEnCours($user);
+    }
+
+    /** Rouvre une séance terminée pour la modifier à nouveau (repasse en "en cours"). */
+    public function rouvrirSeance(Seance $seance): Seance
+    {
+        $seance->setStatut(Seance::STATUT_EN_COURS);
+        $this->em->flush();
+
+        return $seance;
+    }
+
+    /**
+     * Renomme et/ou redate une séance. Les paramètres nuls sont ignorés.
+     * Un modèle n'affiche pas sa date : on autorise malgré tout la mise à jour du nom.
+     */
+    public function updateSeance(Seance $seance, ?string $nom, ?\DateTimeInterface $date): Seance
+    {
+        if ($nom !== null && $nom !== '') {
+            $seance->setNom($nom);
+        }
+        if ($date !== null && !$seance->isModele()) {
+            $seance->setDateSeance($date);
+        }
         $this->em->flush();
 
         return $seance;

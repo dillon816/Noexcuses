@@ -11,6 +11,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class AuthServiceTest extends TestCase
 {
@@ -21,6 +22,7 @@ class AuthServiceTest extends TestCase
         $hasher     = $this->createMock(UserPasswordHasherInterface::class);
         $validator  = $this->createMock(ValidatorInterface::class);
         $jwtManager = $this->createMock(JWTTokenManagerInterface::class);
+        $httpClient = $this->createMock(HttpClientInterface::class);
 
         $repo->method('findByEmail')->willReturn($emailExists ? new User() : null);
         $hasher->method('hashPassword')->willReturn('hashed_password');
@@ -28,7 +30,7 @@ class AuthServiceTest extends TestCase
         $em->method('persist');
         $em->method('flush');
 
-        return new AuthService($em, $repo, $hasher, $validator, $jwtManager);
+        return new AuthService($em, $repo, $hasher, $validator, $jwtManager, $httpClient, 'test-google-client-id');
     }
 
     public function testRegisterCreatesUser(): void

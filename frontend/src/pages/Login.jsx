@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -6,8 +6,45 @@ export default function Login() {
   const [form, setForm]     = useState({ email: '', password: '' });
   const [error, setError]   = useState('');
   const [loading, setLoading] = useState(false);
-  const { login }           = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate            = useNavigate();
+  const googleBtnRef        = useRef(null);
+
+  // Bouton "Se connecter avec Google" : on charge le script officiel Google (GIS)
+  // puis on affiche le bouton. Le Client ID vient de la variable d'environnement.
+  useEffect(() => {
+    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+    if (!clientId || clientId === 'changeme') return; // OAuth non configuré : on n'affiche rien
+
+    const handleCredential = async (response) => {
+      setError('');
+      try {
+        await loginWithGoogle(response.credential);
+        navigate('/dashboard');
+      } catch {
+        setError('Connexion Google échouée.');
+      }
+    };
+
+    const init = () => {
+      if (!window.google?.accounts?.id || !googleBtnRef.current) return;
+      window.google.accounts.id.initialize({ client_id: clientId, callback: handleCredential });
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: 'outline', size: 'large', width: 356, text: 'signin_with', locale: 'fr',
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      init();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = init;
+      document.body.appendChild(script);
+    }
+  }, [loginWithGoogle, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,6 +94,14 @@ export default function Login() {
           </button>
         </form>
 
+        <div style={styles.divider}>
+          <span style={styles.dividerLine} />
+          <span style={styles.dividerText}>ou</span>
+          <span style={styles.dividerLine} />
+        </div>
+
+        <div ref={googleBtnRef} style={{ display: 'flex', justifyContent: 'center' }} />
+
         <p style={{ marginTop: '16px', textAlign: 'center', fontSize: '14px', color: '#64748B' }}>
           Pas encore de compte ?{' '}
           <Link to="/register" style={{ color: '#22C55E', fontWeight: 600 }}>S'inscrire</Link>
@@ -75,4 +120,7 @@ const styles = {
   input: { width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '15px', outline: 'none', background: '#fff' },
   btn:   { width: '100%', marginTop: '24px', padding: '12px', background: '#22C55E', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: 600 },
   error: { background: '#FEF2F2', color: '#DC2626', padding: '10px 14px', borderRadius: '8px', fontSize: '14px', marginBottom: '8px' },
+  divider: { display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' },
+  dividerLine: { flex: 1, height: '1px', background: '#E2E8F0' },
+  dividerText: { fontSize: '13px', color: '#94A3B8' },
 };

@@ -67,23 +67,42 @@ class ProgressionService
     }
 
     /**
-     * Retourne les séances d'entraînement sur la période avec tonnage et nombre de séries.
-     * Sert à tracer l'évolution de la charge d'entraînement .
+     * Charge d'entraînement agrégée par semaine (tonnage total + nombre de séances).
+     * On génère une semaine par intervalle, y compris les semaines sans séance (tonnage 0),
+     * afin d'obtenir une courbe de tendance continue plutôt qu'une barre par séance.
      */
-    public function getStatsEntrainement(User $user, int $days = 30): array
+    public function getStatsEntrainement(User $user, int $weeks = 8): array
     {
-        $from = (new \DateTime())->modify("-{$days} days");
-        $to   = new \DateTime();
+        $weeks = max(1, min($weeks, 52));
+        $today = new \DateTime('today');
+        $lundiCourant = (clone $today)->modify('monday this week');
 
-        $seances = $this->seanceRepo->findByUserBetweenDates($user, $from, $to);
+        // Prépare les buckets (de la semaine la plus ancienne à la plus récente), clés = année-semaine ISO
+        $buckets = [];
+        for ($i = $weeks - 1; $i >= 0; $i--) {
+            $lundi = (clone $lundiCourant)->modify("-{$i} week");
+            $buckets[$lundi->format('o-W')] = [
+                'semaine'   => $lundi->format('d/m'),
+                'tonnage'   => 0.0,
+                'nbSeances' => 0,
+            ];
+        }
 
-        return array_map(fn ($s) => [
-            'date'         => $s->getDateSeance()->format('Y-m-d'),
-            'nom'          => $s->getNom(),
-            'tonnageTotal' => (float) $s->getTonnageTotal(),
-            'statut'       => $s->getStatut(),
-            'nbSeries'     => $s->getSeries()->count(),
-        ], $seances);
+        $from    = (clone $lundiCourant)->modify('-' . ($weeks - 1) . ' week');
+        $seances = $this->seanceRepo->findByUserBetweenDates($user, $from, $today);
+
+        foreach ($seances as $s) {
+            $key = $s->getDateSeance()->format('o-W');
+            if (isset($buckets[$key])) {
+                $buckets[$key]['tonnage'] += (float) $s->getTonnageTotal();
+                $buckets[$key]['nbSeances']++;
+            }
+        }
+
+        return array_values(array_map(static function (array $b) {
+            $b['tonnage'] = round($b['tonnage'], 2);
+            return $b;
+        }, $buckets));
     }
 
     /**

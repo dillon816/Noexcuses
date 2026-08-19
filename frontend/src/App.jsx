@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import { AuthProvider } from './context/AuthContext';
+import { UIFeedbackProvider } from './components/common/UIFeedback';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Layout from './components/Layout/Layout';
 import Login from './pages/Login';
@@ -18,6 +19,7 @@ const Profil       = lazy(() => import('./pages/Profil'));
 export default function App() {
   return (
     <AuthProvider>
+      <UIFeedbackProvider>
       <BrowserRouter>
         <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>Chargement…</div>}>
           <Routes>
@@ -42,6 +44,7 @@ export default function App() {
           </Routes>
         </Suspense>
       </BrowserRouter>
+      </UIFeedbackProvider>
     </AuthProvider>
   );
 }

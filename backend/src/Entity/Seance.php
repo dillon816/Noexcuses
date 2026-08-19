@@ -15,6 +15,8 @@ class Seance
     public const STATUT_EN_COURS  = 'en_cours';
     public const STATUT_TERMINEE  = 'terminee';
     public const STATUT_ARCHIVEE  = 'archivee';
+    // Seance-modele reutilisable : sert de gabarit, exclue de l'historique et des statistiques.
+    public const STATUT_MODELE    = 'modele';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -69,6 +71,26 @@ class Seance
     public function archiver(): void
     {
         $this->statut = self::STATUT_ARCHIVEE;
+    }
+
+    public function isModele(): bool
+    {
+        return $this->statut === self::STATUT_MODELE;
+    }
+
+    /**
+     * Nombre d'exercices distincts de la séance (par id_exercice), à ne pas confondre
+     * avec le nombre total de séries : 2 exercices en 3 séries = 2 exercices, 6 séries.
+     */
+    public function getNbExercices(): int
+    {
+        $ids = [];
+        foreach ($this->series as $serie) {
+            $exercice = $serie->getExercice();
+            $ids[$exercice->getId() ?? spl_object_id($exercice)] = true;
+        }
+
+        return count($ids);
     }
 
     public function getId(): ?int { return $this->id; }
