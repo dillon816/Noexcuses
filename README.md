@@ -142,7 +142,7 @@ noexcuses/
 | CSRF | SPA + JWT — pas de session serveur |
 | Brute force | Rate limiting sur `/api/login` (Symfony Rate Limiter : 5 tentatives / 15 min) |
 | Secrets | `.env.local` dans `.gitignore`, jamais committés |
-| Headers sécurité | Prévus Jalon 6 (X-Frame-Options, CSP) |
+| Headers sécurité | X-Frame-Options (DENY), X-Content-Type-Options, X-XSS-Protection, Referrer-Policy (configurés dans Nginx) |
 | CORS | NelmioCorsBundle configuré explicitement |
 
 ---
