@@ -124,4 +124,19 @@ class AuthControllerTest extends WebTestCase
         $client->request('POST', '/api/auth/google', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode([]));
         $this->assertResponseStatusCodeSame(400);
     }
+
+    public function testLoginRateLimitReturns429AfterTooManyAttempts(): void
+    {
+        $client = static::createClient();
+        // Email unique : cle de limiteur fraiche a chaque execution (deterministe)
+        $payload = json_encode(['email' => 'brute_' . uniqid() . '@noexcuses.fr', 'password' => 'mauvais']);
+
+        // Les 5 premieres tentatives sont refusees (401), la 6e est bloquee (429)
+        for ($i = 1; $i <= 5; $i++) {
+            $client->request('POST', '/api/login', [], [], ['CONTENT_TYPE' => 'application/json'], $payload);
+            $this->assertResponseStatusCodeSame(401);
+        }
+        $client->request('POST', '/api/login', [], [], ['CONTENT_TYPE' => 'application/json'], $payload);
+        $this->assertResponseStatusCodeSame(429);
+    }
 }

@@ -7,12 +7,17 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api')]
 class AuthController extends AbstractController
 {
-    public function __construct(private readonly AuthService $authService) {}
+    public function __construct(
+        private readonly AuthService $authService,
+        // Limiteur configure dans config/packages/rate_limiter.yaml (limiter "login")
+        private readonly RateLimiterFactory $loginLimiter,
+    ) {}
 
     #[Route('/login', name: 'api_login', methods: ['POST'])]
     public function login(Request $request): JsonResponse
@@ -23,8 +28,15 @@ class AuthController extends AbstractController
             return $this->json(['error' => 'Email et mot de passe requis.'], Response::HTTP_BAD_REQUEST);
         }
 
+        // Anti brute force : on limite les tentatives par IP + email
+        $limiter = $this->loginLimiter->create($request->getClientIp() . ':' . $data['email']);
+        if (false === $limiter->consume(1)->isAccepted()) {
+            return $this->json(['error' => 'Trop de tentatives de connexion. Réessayez dans quelques minutes.'], Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
         try {
             $token = $this->authService->login($data['email'], $data['password']);
+            $limiter->reset(); // connexion réussie : on efface le compteur
             return $this->json(['token' => $token]);
         } catch (\InvalidArgumentException) {
             return $this->json(['error' => 'Identifiants invalides.'], Response::HTTP_UNAUTHORIZED);
