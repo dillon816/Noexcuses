@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { useToast } from '../components/common/UIFeedback';
 
 export default function Profil() {
+  const toast = useToast();
   const [profil, setProfil]   = useState(null);
   const [form, setForm]       = useState({});
   const [msg, setMsg]         = useState('');
   const [error, setError]     = useState('');
+  const [downloading, setDownloading] = useState(null); // 'json' | 'excel' | null
 
   useEffect(() => {
     api.get('/profil').then((r) => { setProfil(r.data); setForm(r.data); });
@@ -19,6 +22,28 @@ export default function Profil() {
       setMsg('Profil mis à jour !');
     } catch (err) {
       setError(err.response?.data?.error || 'Erreur lors de la mise à jour.');
+    }
+  };
+
+  // Télécharge l'export en conservant le JWT (requête authentifiée + blob).
+  const handleExport = async (format) => {
+    setDownloading(format);
+    try {
+      const r = await api.get(`/profil/export/${format}`, { responseType: 'blob' });
+      const today = new Date().toISOString().split('T')[0];
+      const ext = format === 'json' ? 'json' : 'xlsx';
+      const url = window.URL.createObjectURL(r.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `noexcuses_mes_donnees_${today}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast('Erreur lors de l\'export. Réessaie dans un instant.', 'error');
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -76,6 +101,29 @@ export default function Profil() {
           </div>
           <button style={{ ...styles.btn, marginTop: '20px' }} type="submit">Sauvegarder</button>
         </form>
+      </div>
+
+      <div style={{ ...styles.card, marginTop: '16px' }}>
+        <h2 style={styles.cardTitle}>Mes données</h2>
+        <p style={{ fontSize: '14px', color: '#64748B', marginTop: '10px' }}>
+          Téléchargez une copie des données associées à votre compte.
+        </p>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
+          <button
+            style={{ ...styles.btn, opacity: downloading ? 0.7 : 1 }}
+            onClick={() => handleExport('json')}
+            disabled={!!downloading}
+          >
+            {downloading === 'json' ? 'Génération…' : 'Exporter en JSON'}
+          </button>
+          <button
+            style={{ ...styles.btn, background: '#0F172A', opacity: downloading ? 0.7 : 1 }}
+            onClick={() => handleExport('excel')}
+            disabled={!!downloading}
+          >
+            {downloading === 'excel' ? 'Génération…' : 'Exporter en Excel'}
+          </button>
+        </div>
       </div>
     </div>
   );

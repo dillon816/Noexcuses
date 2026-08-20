@@ -16,6 +16,7 @@ Projet fil rouge — CDA Bachelor 3 FullStack · IPSSI · Dillon Azag
 | Frontend | React 18 SPA + React Router v6 |
 | HTTP Client | Axios |
 | Graphiques | Recharts |
+| Export Excel | OpenSpout (fichiers `.xlsx`) |
 | API externe | CalorieNinjas + IA Mistral |
 | Infra | Docker Compose (nginx + php-fpm + mysql + node) |
 | CI/CD | GitHub Actions (PHPUnit + npm build) |
@@ -130,6 +131,7 @@ noexcuses/
 | Recovery Budget | `GET/POST /api/recovery/*` | Recovery |
 | Dashboard | `GET /api/dashboard` | Dashboard |
 | Progression | `GET /api/progression/*` | Progression |
+| Export RGPD | `GET /api/profil/export/json` · `/excel` | Profil |
 
 ---
 
