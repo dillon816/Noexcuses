@@ -125,7 +125,7 @@ noexcuses/
 | Module | Routes API | Page React |
 |--------|-----------|------------|
 | Auth JWT | `POST /api/register` `POST /api/login` | Login · Register |
-| Profil | `GET/PUT /api/profil` | Profil |
+| Profil | `GET/PUT/DELETE /api/profil` | Profil |
 | Nutrition | `GET/POST /api/nutrition/*` | Nutrition |
 | Entraînement | `GET/POST /api/seances/*` | Entraînement |
 | Recovery Budget | `GET/POST /api/recovery/*` | Recovery |
