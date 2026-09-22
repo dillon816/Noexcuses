@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
-import { useToast } from '../components/common/UIFeedback';
+import { useToast, useConfirm } from '../components/common/UIFeedback';
+import { useAuth } from '../context/AuthContext';
 
 export default function Profil() {
   const toast = useToast();
+  const confirm = useConfirm();
+  const { logout } = useAuth();
   const [profil, setProfil]   = useState(null);
   const [form, setForm]       = useState({});
   const [msg, setMsg]         = useState('');
   const [error, setError]     = useState('');
   const [downloading, setDownloading] = useState(null); // 'json' | 'excel' | null
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     api.get('/profil').then((r) => { setProfil(r.data); setForm(r.data); });
@@ -44,6 +48,27 @@ export default function Profil() {
       toast('Erreur lors de l\'export. Réessaie dans un instant.', 'error');
     } finally {
       setDownloading(null);
+    }
+  };
+
+  // Droit à l'oubli (RGPD) : suppression définitive du compte et de toutes les données.
+  const handleDeleteAccount = async () => {
+    const ok = await confirm({
+      title: 'Supprimer mon compte',
+      message: 'Cette action est définitive. Toutes vos données (profil, nutrition, entraînements, progression) seront effacées et ne pourront pas être récupérées.',
+      confirmLabel: 'Supprimer définitivement',
+      cancelLabel: 'Annuler',
+      danger: true,
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await api.delete('/profil');
+      logout();
+      window.location.href = '/login';
+    } catch {
+      toast('La suppression a échoué. Réessaie dans un instant.', 'error');
+      setDeleting(false);
     }
   };
 
@@ -124,6 +149,20 @@ export default function Profil() {
             {downloading === 'excel' ? 'Génération…' : 'Exporter en Excel'}
           </button>
         </div>
+      </div>
+
+      <div style={{ ...styles.card, marginTop: '16px', border: '1px solid #FECACA' }}>
+        <h2 style={{ ...styles.cardTitle, color: '#DC2626' }}>Zone dangereuse</h2>
+        <p style={{ fontSize: '14px', color: '#64748B', marginTop: '10px' }}>
+          La suppression de votre compte est définitive et efface toutes vos données (droit à l'oubli).
+        </p>
+        <button
+          style={{ ...styles.btn, background: '#DC2626', marginTop: '16px', opacity: deleting ? 0.7 : 1 }}
+          onClick={handleDeleteAccount}
+          disabled={deleting}
+        >
+          {deleting ? 'Suppression…' : 'Supprimer mon compte'}
+        </button>
       </div>
     </div>
   );

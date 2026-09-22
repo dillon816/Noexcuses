@@ -101,4 +101,16 @@ class ProfilService
 
         return $entry;
     }
+
+    /**
+     * Supprime définitivement le compte de l'utilisateur et toutes ses données.
+     * Les entités liées (objectifs, poids, sommeil, scores, journaux et lignes,
+     * séances et séries) sont effacées en cascade au niveau base (onDelete: CASCADE).
+     * Met en oeuvre le droit à l'oubli du RGPD.
+     */
+    public function deleteAccount(User $user): void
+    {
+        $this->em->remove($user);
+        $this->em->flush();
+    }
 }

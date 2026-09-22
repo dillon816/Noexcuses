@@ -88,4 +88,17 @@ class ProfilController extends AbstractController
 
         return $this->json(['message' => 'Poids enregistré.', 'id' => $entry->getId()], Response::HTTP_CREATED);
     }
+
+    /**
+     * Droit à l'oubli (RGPD) : supprime définitivement le compte de l'utilisateur
+     * connecté et toutes ses données. L'utilisateur est toujours récupéré depuis le
+     * JWT, on ne peut donc supprimer que son propre compte.
+     */
+    #[Route('', name: 'api_profil_delete', methods: ['DELETE'])]
+    public function deleteProfil(): Response
+    {
+        $this->profilService->deleteAccount($this->getUser());
+
+        return new Response(null, Response::HTTP_NO_CONTENT);
+    }
 }
