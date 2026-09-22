@@ -57,6 +57,7 @@ export default function Entrainement() {
   const [dateTo, setDateTo]   = useState('');
   const [search, setSearch]   = useState('');
   const [page, setPage]       = useState(1);
+  const [pageModeles, setPageModeles] = useState(1);
   const PER_PAGE = 10;
 
   const loadModeles = () => getModeles().then((r) => setModeles(r.data));
@@ -463,6 +464,11 @@ export default function Entrainement() {
   const totalPages = Math.ceil(seancesFiltrees.length / PER_PAGE);
   const seancesPage = seancesFiltrees.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
+  // Pagination des modèles (même logique, robuste si un modèle est supprimé)
+  const modelesTotalPages = Math.max(1, Math.ceil(modeles.length / PER_PAGE));
+  const modelesCurrentPage = Math.min(pageModeles, modelesTotalPages);
+  const modelesPage = modeles.slice((modelesCurrentPage - 1) * PER_PAGE, modelesCurrentPage * PER_PAGE);
+
   return (
     <div className="page-wrap narrow" style={{ margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
@@ -517,22 +523,42 @@ export default function Entrainement() {
             action={<button style={styles.btn} onClick={() => startCreate('modele')}>+ Nouveau modèle</button>}
           />
         ) : (
-          <div style={styles.modeleGrid}>
-            {modeles.map((m) => (
-              <div key={m.id} className="lift-card" style={styles.modeleCard} onClick={() => openDetail(m.id)}>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.nom}</p>
-                  <p style={{ fontSize: '13px', color: '#64748B' }}>{plural(m.nbExercices, 'exercice')} · {plural(m.nbSeries, 'série')}</p>
+          <>
+            <div style={styles.modeleGrid}>
+              {modelesPage.map((m) => (
+                <div key={m.id} className="lift-card" style={styles.modeleCard} onClick={() => openDetail(m.id)}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.nom}</p>
+                    <p style={{ fontSize: '13px', color: '#64748B' }}>{plural(m.nbExercices, 'exercice')} · {plural(m.nbSeries, 'série')}</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+                    <button onClick={(e) => handleDemarrer(e, m.id)} style={styles.startBtn} title="Démarrer la séance" disabled={busy === m.id}>
+                      {busy === m.id ? '…' : '▶ Démarrer la séance'}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(e, m.id); }} style={styles.iconBtn} title="Supprimer le modèle" aria-label={`Supprimer le modèle ${m.nom}`}>🗑️</button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
-                  <button onClick={(e) => handleDemarrer(e, m.id)} style={styles.startBtn} title="Démarrer la séance" disabled={busy === m.id}>
-                    {busy === m.id ? '…' : '▶ Démarrer la séance'}
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(e, m.id); }} style={styles.iconBtn} title="Supprimer le modèle" aria-label={`Supprimer le modèle ${m.nom}`}>🗑️</button>
-                </div>
+              ))}
+            </div>
+
+            {modelesTotalPages > 1 && (
+              <div style={styles.pagination}>
+                <button
+                  style={{ ...styles.pageBtn, opacity: modelesCurrentPage === 1 ? 0.4 : 1 }}
+                  disabled={modelesCurrentPage === 1}
+                  onClick={() => setPageModeles(p => p - 1)}
+                >← Précédent</button>
+                <span style={{ fontSize: '13px', color: '#64748B' }}>
+                  Page {modelesCurrentPage} / {modelesTotalPages}
+                </span>
+                <button
+                  style={{ ...styles.pageBtn, opacity: modelesCurrentPage === modelesTotalPages ? 0.4 : 1 }}
+                  disabled={modelesCurrentPage === modelesTotalPages}
+                  onClick={() => setPageModeles(p => p + 1)}
+                >Suivant →</button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )
       )}
 
