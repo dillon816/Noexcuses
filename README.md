@@ -101,10 +101,10 @@ vendor/bin/phpunit --testdox
 noexcuses/
 ├── backend/                  # API Symfony 6
 │   ├── src/
-│   │   ├── Controller/       # 6 contrôleurs REST
+│   │   ├── Controller/       # 7 contrôleurs REST
 │   │   ├── Entity/           # 11 entités Doctrine
 │   │   ├── Repository/       # 7 repositories
-│   │   └── Service/          # 7 services métier
+│   │   └── Service/          # 8 services métier
 │   ├── tests/                # PHPUnit (unitaires + intégration)
 │   └── config/               # JWT, Security, Doctrine, CORS
 ├── frontend/                 # React 18 SPA
