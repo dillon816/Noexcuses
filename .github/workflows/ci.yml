@@ -49,6 +49,10 @@ jobs:
           COMPOSER_MEMORY_LIMIT: -1
         run: composer install --prefer-dist --no-progress --no-interaction --no-scripts
 
+      # Échoue si une dépendance PHP installée a une faille de sécurité connue
+      - name: Audit PHP dependencies
+        run: composer audit --locked --abandoned=report
+
       - name: Create .env for CI
         run: echo "APP_ENV=test" > .env
 
@@ -86,8 +90,31 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      # Échoue si une dépendance livrée en production a une faille élevée ou critique
+      - name: Audit npm dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Build
         run: npm run build
         env:
           REACT_APP_API_URL: http://localhost/api
           CI: false
+
+  # Sécurité : analyse statique du code (SAST)
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Semgrep
+        run: pipx install semgrep==1.180.0
+
+      # Lit le code sans l'exécuter et échoue à la moindre alerte de sécurité
+      - name: Run Semgrep
+        run: >
+          semgrep scan --error --metrics=off
+          --config p/php --config p/javascript --config p/react
+          --config p/secrets --config p/security-audit --config p/owasp-top-ten
+          backend/src backend/config frontend/src
