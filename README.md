@@ -19,7 +19,7 @@ Projet fil rouge — CDA Bachelor 3 FullStack · IPSSI · Dillon Azag
 | Export Excel | OpenSpout (fichiers `.xlsx`) |
 | API externe | CalorieNinjas + IA Mistral |
 | Infra | Docker Compose (nginx + php-fpm + mysql + node) |
-| CI/CD | GitHub Actions (PHPUnit + npm build) |
+| CI/CD | GitHub Actions (PHPUnit, build React, SAST Semgrep, audit des dépendances) |
 
 ---
 
@@ -101,10 +101,10 @@ vendor/bin/phpunit --testdox
 noexcuses/
 ├── backend/                  # API Symfony 6
 │   ├── src/
-│   │   ├── Controller/       # 6 contrôleurs REST
+│   │   ├── Controller/       # 7 contrôleurs REST
 │   │   ├── Entity/           # 11 entités Doctrine
 │   │   ├── Repository/       # 7 repositories
-│   │   └── Service/          # 7 services métier
+│   │   └── Service/          # 8 services métier
 │   ├── tests/                # PHPUnit (unitaires + intégration)
 │   └── config/               # JWT, Security, Doctrine, CORS
 ├── frontend/                 # React 18 SPA
@@ -146,6 +146,8 @@ noexcuses/
 | Secrets | `.env.local` dans `.gitignore`, jamais committés |
 | Headers sécurité | X-Frame-Options (DENY), X-Content-Type-Options, X-XSS-Protection, Referrer-Policy (configurés dans Nginx) |
 | CORS | NelmioCorsBundle configuré explicitement |
+| Dépendances vulnérables | `composer audit` et `npm audit` exécutés dans la CI |
+| Failles dans le code | Analyse statique (SAST) avec Semgrep dans la CI |
 
 ---
 
