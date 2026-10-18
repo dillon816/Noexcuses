@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Exception\EmailAlreadyUsedException;
 use App\Service\AuthService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -88,8 +89,11 @@ class AuthController extends AbstractController
                 'message' => 'Compte créé avec succès.',
                 'userId'  => $user->getId(),
             ], Response::HTTP_CREATED);
-        } catch (\InvalidArgumentException $e) {
+        } catch (EmailAlreadyUsedException $e) {
             return $this->json(['error' => $e->getMessage()], Response::HTTP_CONFLICT);
+        } catch (\InvalidArgumentException $e) {
+            // Contraintes Assert non respectées (format d'email, longueur du prénom...)
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
     }
 }

@@ -7,6 +7,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'objectif')]
+#[ORM\HasLifecycleCallbacks]
 class Objectif
 {
     public const TYPE_PERTE_POIDS  = 'perte_poids';

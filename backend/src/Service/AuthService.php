@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\User;
+use App\Exception\EmailAlreadyUsedException;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -34,7 +35,7 @@ class AuthService
     public function register(string $email, string $password, string $prenom, string $nom): User
     {
         if ($this->userRepository->findByEmail($email)) {
-            throw new \InvalidArgumentException('Cet email est déjà utilisé.');
+            throw new EmailAlreadyUsedException('Cet email est déjà utilisé.');
         }
 
         $user = new User();
