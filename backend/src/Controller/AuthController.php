@@ -20,6 +20,11 @@ class AuthController extends AbstractController
         private readonly RateLimiterFactory $loginLimiter,
     ) {}
 
+    /**
+     * POST /api/login : connexion par email et mot de passe, renvoie le JWT.
+     * Bloqué à 5 essais par 15 min (clé IP + email), au-delà on répond 429.
+     * Mauvais identifiants : 401, avec le même message que l'email existe ou pas.
+     */
     #[Route('/login', name: 'api_login', methods: ['POST'])]
     public function login(Request $request): JsonResponse
     {
@@ -44,6 +49,10 @@ class AuthController extends AbstractController
         }
     }
 
+    /**
+     * POST /api/auth/google : connexion avec Google.
+     * Le front envoie le jeton donné par Google, le service le fait vérifier puis on renvoie notre propre JWT.
+     */
     #[Route('/auth/google', name: 'api_auth_google', methods: ['POST'])]
     public function googleLogin(Request $request): JsonResponse
     {
@@ -61,6 +70,11 @@ class AuthController extends AbstractController
         }
     }
 
+    /**
+     * POST /api/register : création de compte.
+     * Ici on contrôle les champs requis et les 8 caractères du mot de passe, le service gère le reste.
+     * 201 si le compte est créé, 409 si l'email est déjà pris, 400 si une donnée est invalide.
+     */
     #[Route('/register', name: 'api_register', methods: ['POST'])]
     public function register(Request $request): JsonResponse
     {

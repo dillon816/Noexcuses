@@ -18,6 +18,7 @@ class ExportController extends AbstractController
 {
     public function __construct(private readonly DataExportService $exportService) {}
 
+    /** GET /api/profil/export/json : télécharge toutes ses données en JSON (portabilité RGPD). */
     #[Route('/json', name: 'api_export_json', methods: ['GET'])]
     public function exportJson(): JsonResponse
     {
@@ -33,6 +34,10 @@ class ExportController extends AbstractController
         return $response;
     }
 
+    /**
+     * GET /api/profil/export/excel : le même export en Excel, une feuille par type de données.
+     * Le fichier est créé dans un dossier temporaire, lu, puis supprimé avant l'envoi.
+     */
     #[Route('/excel', name: 'api_export_excel', methods: ['GET'])]
     public function exportExcel(): Response
     {

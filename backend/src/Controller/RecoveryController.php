@@ -14,6 +14,10 @@ class RecoveryController extends AbstractController
 {
     public function __construct(private readonly RecoveryService $recoveryService) {}
 
+    /**
+     * GET /api/recovery/score : le dernier score calculé.
+     * S'il n'y en a pas encore, on répond 200 avec un message, ce n'est pas une erreur.
+     */
     #[Route('/score', name: 'api_recovery_score_get', methods: ['GET'])]
     public function getScore(): JsonResponse
     {
@@ -33,6 +37,10 @@ class RecoveryController extends AbstractController
         ]);
     }
 
+    /**
+     * POST /api/recovery/score : calcule le score du jour, ou de la date envoyée.
+     * Un seul score par jour : si on relance le calcul, il remplace celui déjà enregistré.
+     */
     #[Route('/score', name: 'api_recovery_score_calculate', methods: ['POST'])]
     public function calculateScore(Request $request): JsonResponse
     {
@@ -48,6 +56,7 @@ class RecoveryController extends AbstractController
         ], Response::HTTP_CREATED);
     }
 
+    /** GET /api/recovery/sommeil : les nuits des 14 derniers jours. */
     #[Route('/sommeil', name: 'api_recovery_sommeil_history', methods: ['GET'])]
     public function getSommeilHistory(): JsonResponse
     {
@@ -61,6 +70,10 @@ class RecoveryController extends AbstractController
         ], $entries));
     }
 
+    /**
+     * POST /api/recovery/sommeil : enregistre une nuit (heures + qualité de 1 à 5).
+     * Si la nuit existe déjà, le service la met à jour au lieu d'en créer une deuxième.
+     */
     #[Route('/sommeil', name: 'api_recovery_sommeil', methods: ['POST'])]
     public function logSommeil(Request $request): JsonResponse
     {

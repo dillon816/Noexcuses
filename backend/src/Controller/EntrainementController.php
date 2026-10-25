@@ -14,6 +14,7 @@ class EntrainementController extends AbstractController
 {
     public function __construct(private readonly EntrainementService $entrainementService) {}
 
+    /** GET /api/seances : l'historique des séances terminées, 20 par défaut et jamais plus de 100. */
     #[Route('', name: 'api_seances_list', methods: ['GET'])]
     public function getSeances(Request $request): JsonResponse
     {
@@ -23,6 +24,7 @@ class EntrainementController extends AbstractController
         return $this->json(array_map(fn ($s) => $this->serializeSummary($s), $seances));
     }
 
+    /** GET /api/seances/modeles : les modèles de séance (gabarits réutilisables) de l'utilisateur. */
     #[Route('/modeles', name: 'api_seances_modeles', methods: ['GET'])]
     public function getModeles(): JsonResponse
     {
@@ -36,6 +38,7 @@ class EntrainementController extends AbstractController
         ], $modeles));
     }
 
+    /** GET /api/seances/en-cours : les séances démarrées mais pas encore terminées. */
     #[Route('/en-cours', name: 'api_seances_en_cours', methods: ['GET'])]
     public function getEnCours(): JsonResponse
     {
@@ -58,6 +61,10 @@ class EntrainementController extends AbstractController
         ];
     }
 
+    /**
+     * POST /api/seances : crée une séance, ou un modèle si "modele" vaut true.
+     * Seul le nom est obligatoire, la date par défaut est aujourd'hui.
+     */
     #[Route('', name: 'api_seances_create', methods: ['POST'])]
     public function createSeance(Request $request): JsonResponse
     {
@@ -78,6 +85,10 @@ class EntrainementController extends AbstractController
         return $this->json(['message' => 'Séance créée.', 'id' => $seance->getId()], Response::HTTP_CREATED);
     }
 
+    /**
+     * GET /api/seances/{id} : le détail d'une séance avec toutes ses séries.
+     * 404 si elle n'existe pas ou si elle appartient à quelqu'un d'autre.
+     */
     #[Route('/{id}', name: 'api_seances_get', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function getSeance(int $id): JsonResponse
     {
@@ -109,6 +120,10 @@ class EntrainementController extends AbstractController
         ]);
     }
 
+    /**
+     * POST /api/seances/{id}/series : ajoute une ou plusieurs séries identiques (nbSeries).
+     * L'exercice est retrouvé par son nom, et créé s'il n'existe pas encore.
+     */
     #[Route('/{id}/series', name: 'api_seances_add_serie', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function addSerie(int $id, Request $request): JsonResponse
     {
@@ -136,6 +151,9 @@ class EntrainementController extends AbstractController
         }
     }
 
+    /**
+     * PATCH /api/seances/{id}/series/{serieId} : corrige les reps et la charge d'une série, le tonnage est recalculé.
+     */
     #[Route('/{id}/series/{serieId}', name: 'api_seances_update_serie', methods: ['PATCH'], requirements: ['id' => '\d+', 'serieId' => '\d+'])]
     public function updateSerie(int $id, int $serieId, Request $request): JsonResponse
     {
@@ -166,6 +184,7 @@ class EntrainementController extends AbstractController
         }
     }
 
+    /** DELETE /api/seances/{id}/series/{serieId} : supprime une série et renvoie le nouveau tonnage de la séance. */
     #[Route('/{id}/series/{serieId}', name: 'api_seances_delete_serie', methods: ['DELETE'], requirements: ['id' => '\d+', 'serieId' => '\d+'])]
     public function deleteSerie(int $id, int $serieId): JsonResponse
     {
@@ -179,6 +198,7 @@ class EntrainementController extends AbstractController
         }
     }
 
+    /** POST /api/seances/{id}/dupliquer : copie une séance ou un modèle avec toutes ses séries, datée d'aujourd'hui. */
     #[Route('/{id}/dupliquer', name: 'api_seances_dupliquer', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function dupliquer(int $id): JsonResponse
     {
@@ -195,6 +215,7 @@ class EntrainementController extends AbstractController
         }
     }
 
+    /** PUT /api/seances/{id}/terminer : clôture la séance et calcule son tonnage final. */
     #[Route('/{id}/terminer', name: 'api_seances_terminer', methods: ['PUT'], requirements: ['id' => '\d+'])]
     public function terminer(int $id): JsonResponse
     {
@@ -208,6 +229,7 @@ class EntrainementController extends AbstractController
         }
     }
 
+    /** PUT /api/seances/{id}/rouvrir : repasse une séance terminée en cours pour pouvoir la modifier. */
     #[Route('/{id}/rouvrir', name: 'api_seances_rouvrir', methods: ['PUT'], requirements: ['id' => '\d+'])]
     public function rouvrir(int $id): JsonResponse
     {
@@ -221,6 +243,7 @@ class EntrainementController extends AbstractController
         }
     }
 
+    /** PATCH /api/seances/{id} : renomme ou redate une séance, les champs absents ne changent pas. */
     #[Route('/{id}', name: 'api_seances_update', methods: ['PATCH'], requirements: ['id' => '\d+'])]
     public function updateSeance(int $id, Request $request): JsonResponse
     {
@@ -240,6 +263,7 @@ class EntrainementController extends AbstractController
         }
     }
 
+    /** DELETE /api/seances/{id} : supprime la séance et toutes ses séries. */
     #[Route('/{id}', name: 'api_seances_delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function deleteSeance(int $id): JsonResponse
     {

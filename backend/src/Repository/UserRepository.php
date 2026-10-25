@@ -16,6 +16,10 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         parent::__construct($registry, User::class);
     }
 
+    /**
+     * Imposée par PasswordUpgraderInterface : Symfony s'en sert pour remplacer un ancien hash
+     * quand on change d'algorithme ou de coût bcrypt.
+     */
     public function upgradePassword(PasswordAuthenticatedUserInterface $user, string $newHashedPassword): void
     {
         if (!$user instanceof User) {
@@ -26,6 +30,7 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $this->getEntityManager()->flush();
     }
 
+    /** Retrouve un utilisateur par son email. Sert au login, à l'inscription et à la connexion Google. */
     public function findByEmail(string $email): ?User
     {
         return $this->findOneBy(['email' => $email]);

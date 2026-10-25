@@ -13,6 +13,7 @@ class AlimentRepository extends ServiceEntityRepository
         parent::__construct($registry, Aliment::class);
     }
 
+    /** Retrouve un aliment par son identifiant dans l'API externe. Pas appelée pour l'instant. */
     public function findByCodeApi(string $codeApi): ?Aliment
     {
         return $this->findOneBy(['codeApi' => $codeApi]);

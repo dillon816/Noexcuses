@@ -222,6 +222,7 @@ class AiTranslationService
     // Helpers privés
     
 
+    /** Vrai si une vraie clé Mistral est configurée. Sinon on n'appelle pas l'API et on garde les noms anglais. */
     private function hasKey(): bool
     {
         return !empty($this->mistralKey)

@@ -14,6 +14,7 @@ class RecoveryScoreRepository extends ServiceEntityRepository
         parent::__construct($registry, RecoveryScore::class);
     }
 
+    /** Le score le plus récent de l'utilisateur, ou null s'il n'en a jamais calculé. */
     public function findLatestForUser(User $user): ?RecoveryScore
     {
         return $this->createQueryBuilder('r')
@@ -25,6 +26,7 @@ class RecoveryScoreRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /** Le score d'un jour précis. Sert à remplacer le score du jour au lieu d'en créer un deuxième. */
     public function findByUserAndDate(User $user, \DateTimeInterface $date): ?RecoveryScore
     {
         return $this->createQueryBuilder('r')

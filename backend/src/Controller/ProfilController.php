@@ -14,6 +14,10 @@ class ProfilController extends AbstractController
 {
     public function __construct(private readonly ProfilService $profilService) {}
 
+    /**
+     * GET /api/profil : les infos du profil de l'utilisateur connecté.
+     * Pas besoin du service ici, getUser() donne déjà l'utilisateur chargé par le firewall.
+     */
     #[Route('', name: 'api_profil_get', methods: ['GET'])]
     public function getProfil(): JsonResponse
     {
@@ -33,6 +37,10 @@ class ProfilController extends AbstractController
         ]);
     }
 
+    /**
+     * PUT ou PATCH /api/profil : modifie le profil, seuls les champs envoyés changent.
+     * 400 si une valeur ne passe pas la validation.
+     */
     #[Route('', name: 'api_profil_update', methods: ['PUT', 'PATCH'])]
     public function updateProfil(Request $request): JsonResponse
     {
@@ -50,6 +58,10 @@ class ProfilController extends AbstractController
         }
     }
 
+    /**
+     * POST ou PUT /api/profil/objectif : définit un nouvel objectif nutritionnel.
+     * Le service désactive l'ancien, il n'y a qu'un objectif actif à la fois.
+     */
     #[Route('/objectif', name: 'api_profil_objectif', methods: ['POST', 'PUT'])]
     public function setObjectif(Request $request): JsonResponse
     {
@@ -71,6 +83,7 @@ class ProfilController extends AbstractController
         return $this->json(['message' => 'Objectif défini.', 'id' => $objectif->getId()], Response::HTTP_CREATED);
     }
 
+    /** POST /api/profil/poids : enregistre une pesée, datée d'aujourd'hui si aucune date n'est envoyée. */
     #[Route('/poids', name: 'api_profil_poids', methods: ['POST'])]
     public function logPoids(Request $request): JsonResponse
     {

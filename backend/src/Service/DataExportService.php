@@ -42,6 +42,7 @@ class DataExportService
         ];
     }
 
+    /** Les infos du compte. Le mot de passe n'est volontairement pas exporté. */
     private function profil(User $u): array
     {
         return [
@@ -58,6 +59,7 @@ class DataExportService
         ];
     }
 
+    /** Tous les objectifs, actifs ou non, du plus ancien au plus récent. */
     private function objectifs(User $u): array
     {
         $rows = $this->em->getRepository(Objectif::class)->findBy(['utilisateur' => $u], ['createdAt' => 'ASC']);
@@ -73,6 +75,7 @@ class DataExportService
         ], $rows);
     }
 
+    /** L'historique des pesées. */
     private function poids(User $u): array
     {
         $rows = $this->em->getRepository(PoidsHistorique::class)->findBy(['utilisateur' => $u], ['datePesee' => 'ASC']);
@@ -84,6 +87,7 @@ class DataExportService
         ], $rows);
     }
 
+    /** Les totaux de chaque journée. Le détail aliment par aliment n'est pas repris. */
     private function nutrition(User $u): array
     {
         $rows = $this->em->getRepository(JournalAlimentaire::class)->findBy(['utilisateur' => $u], ['dateJournal' => 'ASC']);
@@ -98,6 +102,7 @@ class DataExportService
         ], $rows);
     }
 
+    /** Les séances terminées avec le détail de leurs séries. */
     private function entrainements(User $u): array
     {
         // Uniquement les séances réellement effectuées : ni modèle, ni en cours
@@ -120,6 +125,7 @@ class DataExportService
         ], $seances);
     }
 
+    /** Les nuits enregistrées. */
     private function sommeil(User $u): array
     {
         $rows = $this->em->getRepository(Sommeil::class)->findBy(['utilisateur' => $u], ['dateNuit' => 'ASC']);
@@ -131,6 +137,7 @@ class DataExportService
         ], $rows);
     }
 
+    /** Les scores de récupération calculés. */
     private function recovery(User $u): array
     {
         $rows = $this->em->getRepository(RecoveryScore::class)->findBy(['utilisateur' => $u], ['dateCalcul' => 'ASC']);
@@ -209,11 +216,13 @@ class DataExportService
         }
     }
 
+    /** Transforme une clé comme "poids_kg" en titre de colonne lisible ("Poids kg"). */
     private function humanLabel(string $key): string
     {
         return ucfirst(str_replace('_', ' ', $key));
     }
 
+    /** Prépare une valeur pour une cellule Excel : booléen en oui/non, null en case vide. */
     private function scalar(mixed $value): string
     {
         if (is_bool($value)) {

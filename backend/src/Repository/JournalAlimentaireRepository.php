@@ -14,6 +14,10 @@ class JournalAlimentaireRepository extends ServiceEntityRepository
         parent::__construct($registry, JournalAlimentaire::class);
     }
 
+    /**
+     * Le journal d'un utilisateur pour un jour donné, ou null s'il n'a encore rien mangé.
+     * Les lignes et leurs aliments arrivent dans la même requête (leftJoin + addSelect), ça évite le N+1.
+     */
     public function findByUserAndDate(User $user, \DateTimeInterface $date): ?JournalAlimentaire
     {
         return $this->createQueryBuilder('j')

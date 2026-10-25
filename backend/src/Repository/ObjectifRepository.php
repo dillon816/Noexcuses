@@ -14,6 +14,7 @@ class ObjectifRepository extends ServiceEntityRepository
         parent::__construct($registry, Objectif::class);
     }
 
+    /** L'objectif actif de l'utilisateur. Par sécurité on prend le plus récent s'il y en avait plusieurs. */
     public function findActiveForUser(User $user): ?Objectif
     {
         return $this->createQueryBuilder('o')

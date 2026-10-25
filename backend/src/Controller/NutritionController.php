@@ -14,6 +14,10 @@ class NutritionController extends AbstractController
 {
     public function __construct(private readonly NutritionService $nutritionService) {}
 
+    /**
+     * GET /api/nutrition/aliments?search=... : recherche d'aliments, 2 caractères minimum sinon 400.
+     * Le service regarde d'abord en base, et n'appelle l'API externe que s'il manque des résultats.
+     */
     #[Route('/aliments', name: 'api_nutrition_aliments', methods: ['GET'])]
     public function searchAliment(Request $request): JsonResponse
     {
@@ -34,6 +38,10 @@ class NutritionController extends AbstractController
         ], $aliments));
     }
 
+    /**
+     * GET /api/nutrition/journal?date=... : le journal d'un jour avec ses lignes et ses totaux.
+     * Sans date on prend aujourd'hui. Si rien n'a été mangé, on renvoie une liste vide, pas une erreur.
+     */
     #[Route('/journal', name: 'api_nutrition_journal', methods: ['GET'])]
     public function getJournal(Request $request): JsonResponse
     {
@@ -71,6 +79,11 @@ class NutritionController extends AbstractController
         ]);
     }
 
+    /**
+     * POST /api/nutrition/repas : ajoute un aliment au journal du jour.
+     * On vérifie juste les 3 champs obligatoires, le service fait le reste.
+     * 201 si c'est bon, 400 si un champ manque ou si l'aliment n'existe pas.
+     */
     #[Route('/repas', name: 'api_nutrition_add_repas', methods: ['POST'])]
     public function addRepas(Request $request): JsonResponse
     {
@@ -97,6 +110,10 @@ class NutritionController extends AbstractController
         }
     }
 
+    /**
+     * DELETE /api/nutrition/repas/{id} : supprime un repas du journal.
+     * Le service vérifie que la ligne appartient bien à l'utilisateur connecté, sinon 404.
+     */
     #[Route('/repas/{id}', name: 'api_nutrition_delete_repas', methods: ['DELETE'])]
     public function removeRepas(int $id): JsonResponse
     {
